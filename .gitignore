@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+eggs/
+*.egg
+.eggs/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tauri
+app/src-tauri/target/
+app/src-tauri/gen/
+app/src-tauri/Cargo.lock
+
+# Vite
+app/dist/
+
+# Logs
+*.log
+logs/
+
+# Local config (may contain secrets)
+.env
+.env.local
+.env.*.local
+
+# Database (local dev)
+*.db
+*.db-journal
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Build artifacts
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.msi

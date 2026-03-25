@@ -1,0 +1,189 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { chatStore, conversations } from './chat';
+  import type { ConversationSummary } from '../../shared/types';
+
+  export let currentConversationId: string | null = null;
+
+  let searchQuery = '';
+  let editingId: string | null = null;
+  let editingTitle = '';
+
+  onMount(() => {
+    chatStore.loadConversations();
+  });
+
+  function handleNewChat() {
+    chatStore.newConversation();
+  }
+
+  function handleSelectConversation(id: string) {
+    chatStore.loadConversation(id);
+  }
+
+  function handleDelete(e: Event, id: string) {
+    e.stopPropagation();
+    if (confirm('Delete this conversation?')) {
+      chatStore.deleteConversation(id);
+    }
+  }
+
+  function startEditing(e: Event, conv: ConversationSummary) {
+    e.stopPropagation();
+    editingId = conv.id;
+    editingTitle = conv.title;
+  }
+
+  function saveTitle() {
+    if (editingId && editingTitle.trim()) {
+      chatStore.updateTitle(editingId, editingTitle.trim());
+    }
+    editingId = null;
+    editingTitle = '';
+  }
+
+  function handleEditKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveTitle();
+    } else if (e.key === 'Escape') {
+      editingId = null;
+      editingTitle = '';
+    }
+  }
+
+  async function handleExport(e: Event, id: string, format: 'json' | 'md') {
+    e.stopPropagation();
+    if (format === 'json') {
+      await chatStore.exportJSON(id);
+    } else {
+      await chatStore.exportMarkdown(id);
+    }
+  }
+
+  function formatDate(dateStr: string): string {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return `${days} days ago`;
+    return date.toLocaleDateString();
+  }
+
+  $: filteredConversations = searchQuery
+    ? $conversations.filter((c) =>
+        c.title.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : $conversations;
+</script>
+
+<div class="flex flex-col h-full bg-gray-50 dark:bg-gray-800">
+  <!-- Header -->
+  <div class="p-3 border-b dark:border-gray-700">
+    <button
+      on:click={handleNewChat}
+      class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+      New Chat
+    </button>
+  </div>
+
+  <!-- Search -->
+  <div class="p-3 border-b dark:border-gray-700">
+    <div class="relative">
+      <input
+        type="text"
+        bind:value={searchQuery}
+        placeholder="Search conversations..."
+        class="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+      />
+      <svg
+        class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+    </div>
+  </div>
+
+  <!-- Conversations list -->
+  <div class="flex-1 overflow-y-auto">
+    {#if filteredConversations.length === 0}
+      <div class="p-4 text-center text-gray-400 text-sm">
+        {searchQuery ? 'No matching conversations' : 'No conversations yet'}
+      </div>
+    {:else}
+      <ul class="py-2">
+        {#each filteredConversations as conv (conv.id)}
+          <li>
+            <button
+              on:click={() => handleSelectConversation(conv.id)}
+              class="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group {currentConversationId === conv.id ? 'bg-blue-50 dark:bg-blue-900/20 border-r-2 border-blue-500' : ''}"
+            >
+              {#if editingId === conv.id}
+                <input
+                  type="text"
+                  bind:value={editingTitle}
+                  on:blur={saveTitle}
+                  on:keydown={handleEditKeydown}
+                  class="w-full px-2 py-1 text-sm rounded border border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none"
+                  autofocus
+                />
+              {:else}
+                <div class="flex items-center justify-between">
+                  <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {conv.title}
+                    </div>
+                    <div class="text-xs text-gray-400 mt-0.5">
+                      {formatDate(conv.updated_at)} · {conv.message_count} messages
+                    </div>
+                  </div>
+                  
+                  <!-- Actions (visible on hover) -->
+                  <div class="hidden group-hover:flex items-center gap-1 ml-2">
+                    <button
+                      on:click={(e) => startEditing(e, conv)}
+                      class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      title="Rename"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      on:click={(e) => handleExport(e, conv.id, 'md')}
+                      class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      title="Export"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    </button>
+                    <button
+                      on:click={(e) => handleDelete(e, conv.id)}
+                      class="p-1 text-gray-400 hover:text-red-500"
+                      title="Delete"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              {/if}
+            </button>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </div>
+</div>

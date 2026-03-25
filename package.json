@@ -1,0 +1,20 @@
+{
+  "name": "llmlaunchpad",
+  "version": "0.1.0",
+  "description": "Lightweight local AI platform",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n \"app,server\" -c \"cyan,yellow\" \"npm run dev:app\" \"npm run dev:server\"",
+    "dev:app": "cd app && npm run dev",
+    "dev:server": "cd server && python -m llmlaunchpad",
+    "dev:tauri": "concurrently -n \"tauri,server\" -c \"cyan,yellow\" \"npm run tauri:dev\" \"npm run dev:server\"",
+    "tauri:dev": "cd app && npm run tauri:dev",
+    "tauri:build": "cd app && npm run tauri:build",
+    "install:app": "cd app && npm install",
+    "build": "cd app && npm run build",
+    "build:tauri": "cd app && npm run tauri:build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

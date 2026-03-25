@@ -1,0 +1,58 @@
+[project]
+name = "llmlaunchpad"
+version = "0.1.0"
+description = "Lightweight local AI platform"
+readme = "README.md"
+requires-python = ">=3.10"
+
+# Core dependencies only - minimal install
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "psutil>=5.9.0",
+    "sse-starlette>=1.8.0",
+    "aiosqlite>=0.19.0",
+    "httpx>=0.25.0",
+]
+
+[project.optional-dependencies]
+# For downloading models from Hugging Face
+hf = [
+    "huggingface-hub>=0.20.0",
+]
+
+# For cloud model routing (OpenAI, Anthropic, etc.)
+cloud = [
+    "litellm>=1.30.0",
+]
+
+# GPU detection (NVIDIA)
+gpu = [
+    "GPUtil>=1.4.0",
+]
+
+# All optional features
+all = [
+    "huggingface-hub>=0.20.0",
+    "litellm>=1.30.0",
+    "GPUtil>=1.4.0",
+]
+
+# Development tools
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "httpx>=0.25.0",
+]
+
+[project.scripts]
+llmlaunchpad = "llmlaunchpad.main:run"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

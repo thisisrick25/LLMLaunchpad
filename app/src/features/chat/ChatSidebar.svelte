@@ -80,9 +80,9 @@
     : $conversations;
 </script>
 
-<div class="flex flex-col h-full bg-gray-50 dark:bg-gray-800">
+<div class="flex flex-col h-full bg-white dark:bg-black">
   <!-- Header -->
-  <div class="p-3 border-b dark:border-gray-700">
+  <div class="p-3 border-b border-gray-200 dark:border-white/10">
     <button
       on:click={handleNewChat}
       class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
@@ -95,13 +95,13 @@
   </div>
 
   <!-- Search -->
-  <div class="p-3 border-b dark:border-gray-700">
+  <div class="p-3 border-b border-gray-200 dark:border-white/10">
     <div class="relative">
       <input
         type="text"
         bind:value={searchQuery}
         placeholder="Search conversations..."
-        class="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+        class="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-black text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
       />
       <svg
         class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"
@@ -126,7 +126,7 @@
           <li>
             <button
               on:click={() => handleSelectConversation(conv.id)}
-              class="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group {currentConversationId === conv.id ? 'bg-blue-50 dark:bg-blue-900/20 border-r-2 border-blue-500' : ''}"
+              class="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-white/10 transition-colors group {currentConversationId === conv.id ? 'bg-blue-50 dark:bg-blue-900/20 border-r-2 border-blue-500' : ''}"
             >
               {#if editingId === conv.id}
                 <input
@@ -134,7 +134,7 @@
                   bind:value={editingTitle}
                   on:blur={saveTitle}
                   on:keydown={handleEditKeydown}
-                  class="w-full px-2 py-1 text-sm rounded border border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none"
+                  class="w-full px-2 py-1 text-sm rounded border border-blue-500 bg-white dark:bg-black text-gray-900 dark:text-white focus:outline-none"
                   autofocus
                 />
               {:else}

@@ -70,7 +70,7 @@
           <div
             class="max-w-[80%] rounded-lg px-4 py-2 {message.role === 'user'
               ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'}"
+              : 'bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white'}"
           >
             <div class="text-xs opacity-70 mb-1">
               {message.role === 'user' ? 'You' : 'Assistant'}
@@ -85,7 +85,7 @@
       <!-- Streaming message -->
       {#if $isStreaming}
         <div class="flex justify-start">
-          <div class="max-w-[80%] rounded-lg px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white">
+          <div class="max-w-[80%] rounded-lg px-4 py-2 bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white">
             <div class="text-xs opacity-70 mb-1">Assistant</div>
             <div class="prose prose-sm dark:prose-invert max-w-none">
               {#if $streamingContent}
@@ -117,7 +117,7 @@
   {/if}
 
   <!-- Input area -->
-  <div class="border-t dark:border-gray-700 p-4">
+  <div class="border-t border-gray-200 dark:border-white/10 p-4">
     <form on:submit|preventDefault={handleSubmit} class="flex gap-2">
       <textarea
         bind:this={inputElement}
@@ -126,7 +126,7 @@
         placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
         disabled={$isStreaming}
         rows="1"
-        class="flex-1 resize-none rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+        class="flex-1 resize-none rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-black px-4 py-2 text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
       ></textarea>
       <button
         type="submit"

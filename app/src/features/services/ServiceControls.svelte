@@ -77,7 +77,7 @@
   }
 </script>
 
-<div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+<div class="bg-white dark:bg-black rounded-lg p-4">
   <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
     llama.cpp Server
   </h2>
@@ -139,7 +139,7 @@
         <select
           value={$currentMode}
           on:change={handleModeChange}
-          class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none"
+          class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-black text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none"
         >
           <option value="auto">Auto (Recommended)</option>
           <option value="gpu-heavy">GPU Heavy</option>
@@ -168,14 +168,14 @@
       </button>
 
       {#if showAdvanced}
-        <div class="space-y-3 pl-2 border-l-2 border-gray-200 dark:border-gray-700">
+        <div class="space-y-3 pl-2 border-l-2 border-gray-200 dark:border-white/10">
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Context Size
             </label>
             <select
               bind:value={contextSize}
-              class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none"
+              class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-black text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none"
             >
               <option value={2048}>2K</option>
               <option value={4096}>4K (Default)</option>

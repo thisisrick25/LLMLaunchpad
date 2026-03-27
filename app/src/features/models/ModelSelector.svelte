@@ -76,9 +76,9 @@
   );
 </script>
 
-<div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+<div class="bg-white dark:bg-black rounded-lg">
   <!-- Tabs -->
-  <div class="flex border-b dark:border-gray-700">
+  <div class="flex border-b border-gray-200 dark:border-white/10">
     <button
       on:click={() => activeTab = 'local'}
       class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'local' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}"
@@ -147,7 +147,7 @@
                   <li>
                     <button
                       on:click={() => onSelect(model)}
-                      class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                     >
                       <div class="flex items-center justify-between">
                         <div class="min-w-0 flex-1">
@@ -190,7 +190,7 @@
             bind:value={urlInput}
             on:keydown={(e) => e.key === 'Enter' && handleUrlPaste()}
             placeholder="https://huggingface.co/..."
-            class="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none text-sm"
+            class="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-black text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none text-sm"
           />
           <button
             on:click={handleUrlPaste}
@@ -212,7 +212,7 @@
             bind:value={searchQuery}
             on:input={handleSearch}
             placeholder="Search for GGUF models..."
-            class="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none text-sm"
+            class="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-black text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none text-sm"
           />
           <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -234,7 +234,7 @@
           {#each $searchResults as result}
             <button
               on:click={() => modelsStore.listRepoFiles(result.repo_id)}
-              class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
             >
               <div class="text-sm font-medium text-gray-900 dark:text-white">
                 {result.repo_id}
@@ -261,7 +261,7 @@
           </div>
           <div class="space-y-2 max-h-64 overflow-y-auto">
             {#each $selectedRepoFiles as file}
-              <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700">
+              <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 dark:bg-white/5">
                 <div class="min-w-0 flex-1">
                   <div class="text-sm text-gray-900 dark:text-white truncate">{file.filename}</div>
                   <div class="text-xs text-gray-500">{formatBytes(file.size_bytes)}</div>
@@ -281,7 +281,7 @@
 
       <!-- Active downloads -->
       {#if activeDownloads.length > 0}
-        <div class="border-t dark:border-gray-700 pt-4 mt-4">
+        <div class="border-t border-gray-200 dark:border-white/10 pt-4 mt-4">
           <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Downloads</h3>
           <div class="space-y-2">
             {#each activeDownloads as download}

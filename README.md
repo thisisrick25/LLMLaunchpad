@@ -22,6 +22,17 @@ A lightweight local AI platform that works on Windows, Mac, and Linux. Run open-
 | [Node.js](https://nodejs.org/) | 18+ |
 | [Python](https://www.python.org/) | 3.10+ |
 | [llama.cpp](https://github.com/ggerganov/llama.cpp) | Latest (llama-server binary) |
+
+**Note:** The install scripts (`scripts/install.sh` and `scripts/install.ps1`) can automatically download and extract the `llama-server` binary to `~/.llmlaunchpad/bin/`. After running the script, the backend will locate the binary from this default location. You can also place the binary in your system `PATH` or configure its path in the app settings.
+
+### Obtain a GGUF model
+
+LLMLaunchpad requires a GGUF model (e.g., Llama 3.1). You can:
+- Use the UI's **Download** tab to fetch a model from Hugging Face (e.g., `bartowski/Meta-Llama-3.1-8B-Instruct-GGUF` and select a `Q4_K_M` file).
+- Manually download a `.gguf` file from huggingface.co and place it in `~/.llmlaunchpad/models/` (Linux/macOS) or `%USERPROFILE%\.llmlaunchpad\models\` (Windows).
+- After placing the file, click **Rescan** in the **Local Models** tab.
+
+Make sure the file ends with `.gguf`. Once a model appears, select it and click **Start** (or POST `/control/start`). The UI should show `llama.cpp running`.
 | [Rust](https://www.rust-lang.org/tools/install) | 1.70+ (desktop app only) |
 
 **Platform-specific for desktop app:**

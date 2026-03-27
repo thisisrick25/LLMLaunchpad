@@ -152,6 +152,12 @@ def find_llama_server() -> Optional[str]:
         if path.exists():
             return str(path)
     
+    # 4. Check LLMLaunchpad default bin directory (~/.llmlaunchpad/bin)
+    default_bin = Path.home() / ".llmlaunchpad" / "bin"
+    candidate = default_bin / ("llama-server.exe" if platform.system() == "Windows" else "llama-server")
+    if candidate.exists():
+        return str(candidate)
+    
     return None
 
 

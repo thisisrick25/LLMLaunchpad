@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently -n \"app,server\" -c \"cyan,yellow\" \"npm run dev:app\" \"npm run dev:server\"",
     "dev:app": "cd app && npm run dev",
-    "dev:server": "cd server && python -m llmlaunchpad",
+    "dev:server": "node scripts/dev-server.js",
     "dev:tauri": "concurrently -n \"tauri,server\" -c \"cyan,yellow\" \"npm run tauri:dev\" \"npm run dev:server\"",
     "tauri:dev": "cd app && npm run tauri:dev",
     "tauri:build": "cd app && npm run tauri:build",

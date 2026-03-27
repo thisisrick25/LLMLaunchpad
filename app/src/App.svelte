@@ -20,7 +20,7 @@
 
   // UI state
   let showSidebar = true;
-  let showRightPanel = true;
+  let showControlsModal = false;
   let selectedModel: LocalModel | null = null;
 
   // Load initial status
@@ -43,8 +43,12 @@
     showSidebar = !showSidebar;
   }
 
-  function toggleRightPanel() {
-    showRightPanel = !showRightPanel;
+  function toggleControlsModal() {
+    showControlsModal = true;
+  }
+
+function closeControlsModal() {
+    showControlsModal = false;
   }
 </script>
 
@@ -90,9 +94,9 @@
 
           <!-- Right panel toggle -->
           <button
-            on:click={toggleRightPanel}
+            on:click={toggleControlsModal}
             class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-            title={showRightPanel ? 'Hide controls' : 'Show controls'}
+            title='Show controls'
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -143,17 +147,25 @@
       </main>
 
       <!-- Right Panel - Controls -->
-      {#if showRightPanel}
-        <aside class="w-80 flex-shrink-0 border-l dark:border-gray-700 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4 space-y-4">
-          <!-- Service Controls -->
-          <ServiceControls
-            models={$localModels}
-            {selectedModel}
-          />
+{#if showControlsModal}
+        <div role="dialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" on:click|self={closeControlsModal}>
+          <div class="bg-white dark:bg-gray-800 p-4 rounded-lg max-w-md w-full max-h-screen overflow-y-auto relative">
+            <button class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200" on:click={closeControlsModal} title="Close">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
 
-          <!-- Model Selector -->
-          <ModelSelector onSelect={handleModelSelect} />
-        </aside>
+            <!-- Service Controls -->
+            <ServiceControls
+              models={$localModels}
+              {selectedModel}
+            />
+
+            <!-- Model Selector -->
+            <ModelSelector onSelect={handleModelSelect} />
+          </div>
+        </div>
       {/if}
     </div>
   {/if}

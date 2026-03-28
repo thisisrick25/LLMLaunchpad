@@ -1,0 +1,22 @@
+{
+  "workflowPreferences": {
+    "autoAdvance": false,
+    "requireExplicitApproval": true,
+    "preferredCommunication": "concise",
+    "maxContextUsage": "medium",
+    "parallelExecution": true,
+    "documentationLevel": "detailed"
+  },
+  "projectSettings": {
+    "name": "LLMLaunchpad",
+    "description": "Lightweight local AI platform for Windows, Mac, and Linux",
+    "version": "0.1.0",
+    "targetCompletion": "Q3 2026"
+  },
+  "featureFlags": {
+    "enableResearchPhase": false,
+    "strictRequirements": true,
+    "iterativeRoadmap": true,
+    "continuousIntegration": true
+  }
+}

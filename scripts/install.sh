@@ -286,20 +286,20 @@ elif [ "$NO_PROMPT" = false ]; then
     fi
     echo ""
     
-    # GPU support
-    if [ -n "$GPU_INSTALLED" ]; then
-        echo -e "${WHITE}GPU Support - NVIDIA GPU detection${NC}"
-        echo -e "  ${GREEN}Already installed ($GPU_INSTALLED)${NC}"
-    else
-        echo -e "${WHITE}GPU Support - NVIDIA GPU detection${NC}"
-        echo -e "  ${GRAY}Enables automatic GPU layer offloading${NC}"
-        read -p "  Install GPU support? [Y/n] " response
-        if [[ "$response" == "" || "$response" =~ ^[Yy] ]]; then
-            INSTALL_GPU=true
-        fi
-    fi
-    fi
-    echo ""
+     # GPU support
+     if [ -n "$GPU_INSTALLED" ]; then
+         echo -e "${WHITE}GPU Support - NVIDIA GPU detection${NC}"
+         echo -e "  ${GREEN}Already installed ($GPU_INSTALLED)${NC}"
+     else
+         echo -e "${WHITE}GPU Support - NVIDIA GPU detection${NC}"
+         echo -e "  ${GRAY}Enables automatic GPU layer offloading${NC}"
+         read -p "  Install GPU support? [Y/n] " response
+         if [[ "$response" == "" || "$response" =~ ^[Yy] ]]; then
+             INSTALL_GPU=true
+         fi
+     fi
+     
+     echo ""
     
     # LiteLLM
     if [ "$LITELLM_INSTALLED" = true ]; then

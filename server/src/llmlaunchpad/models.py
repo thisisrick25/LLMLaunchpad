@@ -6,7 +6,7 @@ import json
 import platform
 from pathlib import Path
 from dataclasses import dataclass, asdict
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from concurrent.futures import ThreadPoolExecutor
 
 from .config import get_config
@@ -172,6 +172,10 @@ def scan_directory_for_gguf(directory: Path, source: str) -> List[LocalModel]:
     try:
         for file_path in directory.rglob("*.gguf"):
             try:
+                # Validate that the file is a valid GGUF format
+                if not validate_gguf_format(str(file_path)):
+                    continue
+                    
                 stat = file_path.stat()
                 models.append(LocalModel(
                     name=file_path.name,
@@ -502,6 +506,8 @@ def get_recommended_models() -> List[Dict[str, Any]]:
 
 # Cached model list
 _cached_models: Optional[List[LocalModel]] = None
+# Cached GGUF validation results to avoid repeated file reads
+_gguf_validation_cache: Dict[str, bool] = {}
 
 
 def get_local_models(refresh: bool = False) -> List[LocalModel]:
@@ -510,6 +516,169 @@ def get_local_models(refresh: bool = False) -> List[LocalModel]:
     if _cached_models is None or refresh:
         _cached_models = scan_all_models()
     return _cached_models
+
+
+def validate_gguf_format(file_path: str) -> bool:
+    """
+    Validate that a file is a valid GGUF format by checking magic number and version.
+    
+    Args:
+        file_path: Path to the file to validate
+        
+    Returns:
+        True if valid GGUF format, False otherwise
+    """
+    try:
+        with open(file_path, 'rb') as f:
+            # Read magic number (first 4 bytes)
+            magic = f.read(4)
+            if magic != b'GGUF':
+                return False
+            
+            # Read version (next 4 bytes as little-endian uint32)
+            version_bytes = f.read(4)
+            if len(version_bytes) < 4:
+                return False
+                
+            version = int.from_bytes(version_bytes, 'little')
+            # GGUF version should be 1, 2, or 3 (as of current spec)
+            if version not in [1, 2, 3]:
+                return False
+                
+            return True
+    except Exception:
+        return False
+
+
+def extract_gguf_metadata(file_path: str) -> Optional[Dict[str, Any]]:
+    """
+    Extract metadata from a GGUF file.
+    
+    Args:
+        file_path: Path to the GGUF file
+        
+    Returns:
+        Dictionary with metadata or None if invalid
+    """
+    try:
+        with open(file_path, 'rb') as f:
+            # Check magic number
+            magic = f.read(4)
+            if magic != b'GGUF':
+                return None
+            
+            # Read version
+            version_bytes = f.read(4)
+            if len(version_bytes) < 4:
+                return None
+            version = int.from_bytes(version_bytes, 'little')
+            
+            # Skip tensor count (4 bytes)
+            f.read(4)
+            
+            # Read key-value count
+            kv_count_bytes = f.read(4)
+            if len(kv_count_bytes) < 4:
+                return None
+            kv_count = int.from_bytes(kv_count_bytes, 'little')
+            
+            metadata = {}
+            for _ in range(kv_count):
+                # Read key length (8 bytes as uint64)
+                key_len_bytes = f.read(8)
+                if len(key_len_bytes) < 8:
+                    break
+                key_len = int.from_bytes(key_len_bytes, 'little')
+                
+                # Read key
+                key_bytes = f.read(key_len)
+                if len(key_bytes) < key_len:
+                    break
+                key = key_bytes.decode('utf-8', errors='ignore')
+                
+                # Read value type (4 bytes as uint32)
+                val_type_bytes = f.read(4)
+                if len(val_type_bytes) < 4:
+                    break
+                val_type = int.from_bytes(val_type_bytes, 'little')
+                
+                # Read value based on type
+                value = None  # Initialize value
+                if val_type == 0:  # UINT8
+                    val_bytes = f.read(1)
+                    value = int.from_bytes(val_bytes, 'little') if val_bytes else 0
+                elif val_type == 1:  # INT8
+                    val_bytes = f.read(1)
+                    value = int.from_bytes(val_bytes, 'little', signed=True) if val_bytes else 0
+                elif val_type == 2:  # UINT16
+                    val_bytes = f.read(2)
+                    value = int.from_bytes(val_bytes, 'little') if val_bytes else 0
+                elif val_type == 3:  # INT16
+                    val_bytes = f.read(2)
+                    value = int.from_bytes(val_bytes, 'little', signed=True) if val_bytes else 0
+                elif val_type == 4:  # UINT32
+                    val_bytes = f.read(4)
+                    value = int.from_bytes(val_bytes, 'little') if val_bytes else 0
+                elif val_type == 5:  # INT32
+                    val_bytes = f.read(4)
+                    value = int.from_bytes(val_bytes, 'little', signed=True) if val_bytes else 0
+                elif val_type == 6:  # FLOAT32
+                    val_bytes = f.read(4)
+                    import struct
+                    value = struct.unpack('<f', val_bytes)[0] if val_bytes else 0.0
+                elif val_type == 7:  # BOOL
+                    val_bytes = f.read(1)
+                    value = bool(int.from_bytes(val_bytes, 'little')) if val_bytes else False
+                elif val_type == 8:  # STRING
+                    # Read string length (8 bytes as uint64)
+                    str_len_bytes = f.read(8)
+                    if len(str_len_bytes) < 8:
+                        break
+                    str_len = int.from_bytes(str_len_bytes, 'little')
+                    # Read string
+                    str_bytes = f.read(str_len)
+                    value = str_bytes.decode('utf-8', errors='ignore') if str_bytes else ""
+                elif val_type == 9:  # ARRAY
+                    # Skip array for simplicity in metadata extraction
+                    # Read array type (4 bytes as uint32)
+                    arr_type_bytes = f.read(4)
+                    if len(arr_type_bytes) < 4:
+                        break
+                    arr_type = int.from_bytes(arr_type_bytes, 'little')
+                    # Read array length (8 bytes as uint64)
+                    arr_len_bytes = f.read(8)
+                    if len(arr_len_bytes) < 8:
+                        break
+                    arr_len = int.from_bytes(arr_len_bytes, 'little')
+                    # Skip array elements (simplified - in reality would need to parse based on type)
+                    # For now, we'll just skip a reasonable amount
+                    # This is a simplification - proper implementation would parse based on arr_type
+                    f.seek(arr_len * 8, 1)  # Skip assuming uint64 for simplicity
+                elif val_type == 10:  # UINT64
+                    val_bytes = f.read(8)
+                    value = int.from_bytes(val_bytes, 'little') if val_bytes else 0
+                elif val_type == 11:  # INT64
+                    val_bytes = f.read(8)
+                    value = int.from_bytes(val_bytes, 'little', signed=True) if val_bytes else 0
+                elif val_type == 12:  # FLOAT64
+                    val_bytes = f.read(8)
+                    import struct
+                    value = struct.unpack('<d', val_bytes)[0] if val_bytes else 0.0
+                else:
+                    # Unknown type, skip 8 bytes as placeholder
+                    f.read(8)
+                    value = None
+                
+                metadata[key] = value
+            
+            # Add basic file info
+            metadata['gguf_version'] = version
+            metadata['file_path'] = file_path
+            
+            return metadata
+    except Exception as e:
+        # For debugging - in production, we'd want to log this
+        return None
 
 
 def find_model_by_name(name: str) -> Optional[LocalModel]:

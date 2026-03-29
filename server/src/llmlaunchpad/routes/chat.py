@@ -8,8 +8,9 @@ import json
 import uuid
 import asyncio
 import logging
+import time
 from datetime import datetime
-from typing import Optional, List, Dict, Any, AsyncIterator
+from typing import Optional, List, Dict, Any, AsyncIterator, Tuple
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -219,16 +220,30 @@ async def get_local_completion(
         request_data["n_predict"] = max_tokens
     
     async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{api_url}/v1/chat/completions",
-            json=request_data,
-            timeout=300.0,
-        )
-        
-        if response.status_code != 200:
-            raise RuntimeError(f"llama-server error: {response.text}")
-        
-        return response.json()
+        try:
+            response = await client.post(
+                f"{api_url}/v1/chat/completions",
+                json=request_data,
+                timeout=300.0,
+            )
+            
+            if response.status_code != 200:
+                error_text = response.text
+                raise RuntimeError(f"llama-server error: {error_text}")
+            
+            result = response.json()
+            # Validate that the response has the expected structure
+            if not isinstance(result, dict) or "choices" not in result:
+                raise RuntimeError(f"Invalid response format from llama-server: {result}")
+            if not result["choices"] or not isinstance(result["choices"], list):
+                raise RuntimeError(f"Invalid choices format from llama-server: {result.get('choices')}")
+            return result
+        except httpx.TimeoutException:
+            raise RuntimeError("Timeout connecting to llama-server")
+        except httpx.ConnectError:
+            raise RuntimeError("Failed to connect to llama-server")
+        except httpx.RequestError as e:
+            raise RuntimeError(f"Request to llama-server failed: {str(e)}")
 
 
 # Routes
@@ -353,7 +368,18 @@ async def chat_completions(request: ChatRequest):
                     max_tokens=request.max_tokens,
                     stream=False,
                 )
-                content = response.choices[0].message.content
+                # Safely extract content from LiteLLM response
+                if (isinstance(response, dict) and 
+                    "choices" in response and 
+                    isinstance(response["choices"], list) and 
+                    len(response["choices"]) > 0 and
+                    isinstance(response["choices"][0], dict) and
+                    "message" in response["choices"][0] and
+                    isinstance(response["choices"][0]["message"], dict) and
+                    "content" in response["choices"][0]["message"]):
+                    content = response["choices"][0]["message"]["content"]
+                else:
+                    raise RuntimeError(f"Invalid response format from LiteLLM: {response}")
                 model_name = cloud_model.model_id
             else:
                 response = await get_local_completion(
@@ -361,7 +387,18 @@ async def chat_completions(request: ChatRequest):
                     temperature=request.temperature,
                     max_tokens=request.max_tokens,
                 )
-                content = response["choices"][0]["message"]["content"]
+                # Safely extract content from llama-server response
+                if (isinstance(response, dict) and 
+                    "choices" in response and 
+                    isinstance(response["choices"], list) and 
+                    len(response["choices"]) > 0 and
+                    isinstance(response["choices"][0], dict) and
+                    "message" in response["choices"][0] and
+                    isinstance(response["choices"][0]["message"], dict) and
+                    "content" in response["choices"][0]["message"]):
+                    content = response["choices"][0]["message"]["content"]
+                else:
+                    raise RuntimeError(f"Invalid response format from llama-server: {response}")
                 model_name = "local"
             
             # Save assistant response

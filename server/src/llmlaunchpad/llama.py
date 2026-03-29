@@ -104,6 +104,8 @@ def find_llama_server() -> Optional[str]:
     1. Config-specified path
     2. System PATH
     3. Common installation locations
+    4. LLMLaunchpad default bin directory
+    5. Download if not found and auto-download is enabled
     """
     config = get_config()
     
@@ -158,7 +160,180 @@ def find_llama_server() -> Optional[str]:
     if candidate.exists():
         return str(candidate)
     
+    # 5. Download if not found and auto-download is enabled
+    if config.llama_auto_download:
+        logger.info("llama-server not found, attempting to download...")
+        downloaded_path = download_llama_server()
+        if downloaded_path:
+            return downloaded_path
+    
     return None
+
+
+def download_llama_server() -> Optional[str]:
+    """
+    Download llama-server binary from official releases.
+    
+    Returns the path to the downloaded binary or None if failed.
+    """
+    import urllib.request
+    import tarfile
+    import zipfile
+    import hashlib
+    import stat
+    import time
+    
+    config = get_config()
+    system = platform.system()
+    machine = platform.machine().lower()
+    
+    # Initialize variables to avoid unbound errors
+    archive_path = None
+    
+    # Determine the appropriate binary name and URL
+    if system == "Windows":
+        # For Windows, we'll use a pre-built binary from the releases
+        # Note: Official llama.cpp doesn't provide Windows binaries in releases
+        # This is a simplified approach - in practice, we might need to build or use community builds
+        # For now, we'll return None to indicate manual download is needed
+        logger.warning("Automatic download for Windows is not implemented in this version")
+        logger.warning("Please download llama-server manually for Windows and place it in your PATH or set llama_binary in config")
+        return None
+    elif system == "Darwin":
+        # macOS
+        if "arm" in machine or "aarch64" in machine:
+            # Apple Silicon
+            binary_name = "llama-server"
+            asset_name = "llama-server-b5122-macos-arm64.zip"
+        else:
+            # Intel
+            binary_name = "llama-server"
+            asset_name = "llama-server-b5122-macos-x64.zip"
+    else:  # Linux
+        if "arm" in machine or "aarch64" in machine:
+            # ARM Linux (Raspberry Pi, etc.)
+            binary_name = "llama-server"
+            asset_name = "llama-server-b5122-linux-arm64.tar.gz"
+        else:
+            # x86_64 Linux
+            binary_name = "llama-server"
+            asset_name = "llama-server-b5122-linux-x64.tar.gz"
+    
+    # Use a specific version - in practice, this should be configurable
+    version = "b5122"
+    base_url = config.llama_binary_source.rstrip("/")
+    url = f"{base_url}/{version}/{asset_name}"
+    
+    # Download directory
+    download_dir = Path.home() / ".llmlaunchpad" / "bin"
+    download_dir.mkdir(parents=True, exist_ok=True)
+    
+    binary_path = download_dir / binary_name
+    
+    # Add .exe extension on Windows
+    if system == "Windows":
+        binary_path = binary_path.with_suffix(".exe")
+    
+    try:
+        logger.info(f"Downloading llama-server from {url}")
+        
+        # Download the file with progress reporting
+        def reporthook(block_num, block_size, total_size):
+            read_so_far = block_num * block_size
+            if total_size > 0:
+                percent = read_so_far * 100 / total_size
+                s = f"\rDownloading: {percent:.1f}% ({read_so_far} / {total_size} bytes)"
+                sys.stderr.write(s)
+                if read_so_far >= total_size:  # near the end
+                    sys.stderr.write("\n")
+        
+        archive_path = download_dir / asset_name
+        urllib.request.urlretrieve(url, archive_path, reporthook)
+        
+        # Verify checksum if possible
+        checksum_verified = False
+        try:
+            # Download checksum file
+            checksum_url = f"{url}.sha256"
+            checksum_path = download_dir / f"{asset_name}.sha256"
+            urllib.request.urlretrieve(checksum_url, checksum_path)
+            
+            # Read expected checksum
+            with open(checksum_path, 'r') as f:
+                expected_checksum = f.read().strip().split()[0]  # Extract just the hash
+            
+            # Calculate actual checksum
+            sha256_hash = hashlib.sha256()
+            with open(archive_path, "rb") as f:
+                for byte_block in iter(lambda: f.read(4096), b""):
+                    sha256_hash.update(byte_block)
+            actual_checksum = sha256_hash.hexdigest()
+            
+            # Compare checksums
+            if expected_checksum == actual_checksum:
+                checksum_verified = True
+                logger.info("Checksum verification passed")
+            else:
+                logger.error(f"Checksum verification failed: expected {expected_checksum}, got {actual_checksum}")
+            
+            # Clean up checksum file
+            checksum_path.unlink(missing_ok=True)
+        except Exception as e:
+            logger.warning(f"Could not verify checksum: {e}")
+            # Continue without checksum verification if it fails
+            pass
+        
+        # Extract based on file type
+        if asset_name.endswith(".zip"):
+            with zipfile.ZipFile(archive_path, 'r') as zip_ref:
+                zip_ref.extractall(download_dir)
+                # Find the binary in the extracted files
+                for extracted_file in zip_ref.namelist():
+                    if binary_name in extracted_file and not extracted_file.endswith('/'):
+                        extracted_path = download_dir / extracted_file
+                        if extracted_path.exists():
+                            shutil.move(str(extracted_path), str(binary_path))
+                            break
+        elif asset_name.endswith(".tar.gz"):
+            with tarfile.open(archive_path, "r:gz") as tar_ref:
+                tar_ref.extractall(download_dir)
+                # Find the binary in the extracted files
+                for member in tar_ref.getmembers():
+                    if binary_name in member.name and not member.isdir():
+                        extracted_path = download_dir / member.name
+                        if extracted_path.exists():
+                            shutil.move(str(extracted_path), str(binary_path))
+                            break
+        
+        # Remove the archive
+        if archive_path and archive_path.exists():
+            archive_path.unlink()
+        
+        # Make binary executable (Unix-like systems)
+        if system != "Windows":
+            try:
+                current_permissions = binary_path.stat().st_mode
+                binary_path.chmod(current_permissions | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+            except Exception as e:
+                logger.warning(f"Could not set executable permissions: {e}")
+        
+        logger.info(f"Successfully downloaded llama-server to {binary_path}")
+        return str(binary_path)
+        
+    except Exception as e:
+        logger.error(f"Failed to download llama-server: {e}")
+        # Clean up on failure
+        if archive_path and archive_path.exists():
+            try:
+                archive_path.unlink()
+            except Exception:
+                pass  # Ignore cleanup errors
+        if binary_path.exists():
+            try:
+                binary_path.unlink()
+            except Exception:
+                pass  # Ignore cleanup errors
+        return None
 
 
 class LlamaServer:

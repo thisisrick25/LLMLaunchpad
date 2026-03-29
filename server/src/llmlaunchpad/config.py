@@ -59,6 +59,10 @@ class Config:
     litellm_enabled: bool = False
     litellm_api_keys: dict = field(default_factory=dict)
     
+    # Llama.cpp binary download
+    llama_auto_download: bool = True
+    llama_binary_source: str = "https://github.com/ggerganov/llama.cpp/releases/download"
+    
     # Server
     host: str = "127.0.0.1"
     port: int = 8000

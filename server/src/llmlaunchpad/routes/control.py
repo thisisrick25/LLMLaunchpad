@@ -91,13 +91,6 @@ async def start_server(request: StartRequest):
             detail="Port must be between 1 and 65535"
         )
     
-    # Validate gpu_layers if provided
-    if request.gpu_layers is not None and request.gpu_layers < 0:
-        raise HTTPException(
-            status_code=400,
-            detail="GPU layers must be >= 0"
-        )
-    
     # Calculate GPU layers if not specified
     if request.gpu_layers is not None:
         gpu_layers = request.gpu_layers

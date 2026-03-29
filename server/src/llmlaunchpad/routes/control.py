@@ -77,6 +77,20 @@ async def start_server(request: StartRequest):
             detail=f"Model not found: {request.model}"
         )
     
+    # Validate context_size
+    if request.context_size < 128 or request.context_size > 131072:
+        raise HTTPException(
+            status_code=400,
+            detail="Context size must be between 128 and 131072"
+        )
+    
+    # Validate port
+    if request.port < 1 or request.port > 65535:
+        raise HTTPException(
+            status_code=400,
+            detail="Port must be between 1 and 65535"
+        )
+    
     # Calculate GPU layers if not specified
     if request.gpu_layers is not None:
         gpu_layers = request.gpu_layers

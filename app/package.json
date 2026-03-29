@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
-    "@tauri-apps/plugin-shell": "^2.3.5"
+    "@tauri-apps/plugin-shell": "^2.3.5",
+    "dompurify": "^3.3.3"
   }
 }

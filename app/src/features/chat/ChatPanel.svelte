@@ -2,6 +2,7 @@
   import { onMount, afterUpdate, tick } from 'svelte';
   import { chatStore, currentMessages, isStreaming, streamingContent, chatError } from './chat';
   import type { ChatMessage } from '../../shared/types';
+  import DOMPurify from 'dompurify';
 
   let inputValue = '';
   let messagesContainer: HTMLDivElement;
@@ -36,16 +37,17 @@
     }
   }
 
-  function formatContent(content: string): string {
-    // Basic markdown-like formatting
-    // Convert code blocks
-    content = content.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>');
-    // Convert inline code
-    content = content.replace(/`([^`]+)`/g, '<code>$1</code>');
-    // Convert newlines to <br> (outside of pre blocks)
-    content = content.replace(/\n/g, '<br>');
-    return content;
-  }
+   function formatContent(content: string): string {
+     // Basic markdown-like formatting
+     // Convert code blocks
+     content = content.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>');
+     // Convert inline code
+     content = content.replace(/`([^`]+)`/g, '<code>$1</code>');
+     // Convert newlines to <br> (outside of pre blocks)
+     content = content.replace(/\n/g, '<br>');
+     // Sanitize HTML to prevent XSS
+     return DOMPurify.sanitize(content);
+   }
 </script>
 
 <div class="flex flex-col h-full">

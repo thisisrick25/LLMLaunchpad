@@ -79,8 +79,35 @@ def detect_gpus() -> List[GPUInfo]:
     except (ImportError, Exception):
         pass
     
+    # Try Apple GPUs via system_profiler (macOS)
+    if platform.system() == "Darwin":
+        import subprocess
+        import json
+        try:
+            cmd = ["system_profiler", "SPDisplaysDataType", "-json"]
+            output = subprocess.check_output(cmd, text=True)
+            data = json.loads(output)
+            if "SPDisplaysDataType" in data:
+                for item in data["SPDisplaysDataType"]:
+                    if "_items" in item:
+                        for gpu in item["_items"]:
+                            name = gpu.get("sppci_model", "Apple GPU")
+                            vram_str = gpu.get("spdisplays_vram", "0 MB")
+                            # Extract number from vram_str (e.g., "1024 MB")
+                            try:
+                                vram_mb = int(vram_str.split()[0])
+                            except (ValueError, IndexError):
+                                vram_mb = 0
+                            gpus.append(GPUInfo(
+                                name=name,
+                                memory_total_mb=vram_mb,
+                                memory_free_mb=0,  # unknown
+                                memory_used_mb=0,  # unknown
+                            ))
+        except (Exception, subprocess.SubprocessError, json.JSONDecodeError):
+            pass
+    
     # TODO: Add AMD ROCm detection
-    # TODO: Add Apple Metal detection for macOS
     
     return gpus
 

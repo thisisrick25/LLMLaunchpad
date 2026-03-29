@@ -15,7 +15,7 @@ This roadmap outlines the phased approach to building the LLMLaunchpad platform 
 **Value**: Provides a working development environment that can be built and run across target platforms.
 
 **Plans**: 1 plans
-- [ ] 1-core-infrastructure-01-PLAN.md — Implement core infrastructure and service management
+- [x] 1-core-infrastructure-01-PLAN.md — Implement core infrastructure and service management
 
 ---
 

@@ -29,7 +29,7 @@ interface ChatState {
   };
 
   // Search results state
-  const searchResults = writable<SearchResult[]>([]);
+  export const searchResults = writable<SearchResult[]>([]);
 
 // Create the store
 function createChatStore() {
@@ -244,4 +244,3 @@ export const currentMessages = derived(chatStore, ($s) => $s.messages);
 export const isStreaming = derived(chatStore, ($s) => $s.isStreaming);
 export const streamingContent = derived(chatStore, ($s) => $s.streamingContent);
 export const chatError = derived(chatStore, ($s) => $s.error);
-export const searchResults;

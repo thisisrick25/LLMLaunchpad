@@ -19,9 +19,9 @@
     }
   }
 
-    onMount(() => {
-      chatStore.loadConversations();
-    });
+  onMount(() => {
+    chatStore.loadConversations();
+  });
 
   function handleNewChat() {
     chatStore.newConversation();
@@ -171,7 +171,7 @@
                       <p class="text-gray-700 dark:text-gray-200">
                         {@html result.content.replace(
                           new RegExp(searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
-                          (match) => `<mark class="bg-yellow-200">${match}</mark>`
+                          match => `<mark class="bg-yellow-200">${match}</mark>`
                         )}
                       </p>
                     </div>
@@ -180,17 +180,16 @@
                     Message from {result.role === 'user' ? 'you' : 'assistant'} in conversation
                   </div>
                 </div>
-              </div>
-              <div class="mt-2 text-right">
-                <button
-                  on:click={() => handleSelectSearchResult(result.conversation_id)}
-                  class="text-sm font-medium text-blue-600 hover:text-blue-800"
-                >
-                  View Conversation
-                </button>
+                <div class="mt-2 text-right">
+                  <button
+                    on:click={() => handleSelectSearchResult(result.conversation_id)}
+                    class="text-sm font-medium text-blue-600 hover:text-blue-800"
+                  >
+                    View Conversation
+                  </button>
+                </div>
               </div>
             </div>
-          </li>
         {/each}
       </ul>
     {/if}

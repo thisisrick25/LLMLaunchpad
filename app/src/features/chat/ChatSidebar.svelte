@@ -5,9 +5,18 @@
 
   export let currentConversationId: string | null = null;
 
-  let searchQuery = '';
-  let editingId: string | null = null;
-  let editingTitle = '';
+let searchQuery = '';
+let editingId: string | null = null;
+let editingTitle = '';
+let activeActionsId: string | null = null;
+
+function toggleActions(id: string) {
+  if (activeActionsId === id) {
+    activeActionsId = null;
+  } else {
+    activeActionsId = id;
+  }
+}
 
   onMount(() => {
     chatStore.loadConversations();
@@ -128,58 +137,61 @@
               on:click={() => handleSelectConversation(conv.id)}
               class="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-white/10 transition-colors group {currentConversationId === conv.id ? 'bg-blue-50 dark:bg-blue-900/20 border-r-2 border-blue-500' : ''}"
             >
-              {#if editingId === conv.id}
-                <input
-                  type="text"
-                  bind:value={editingTitle}
-                  on:blur={saveTitle}
-                  on:keydown={handleEditKeydown}
-                  class="w-full px-2 py-1 text-sm rounded border border-blue-500 bg-white dark:bg-black text-gray-900 dark:text-white focus:outline-none"
-                  autofocus
-                />
-              {:else}
-                <div class="flex items-center justify-between">
-                  <div class="flex-1 min-w-0">
-                    <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {conv.title}
-                    </div>
-                    <div class="text-xs text-gray-400 mt-0.5">
-                      {formatDate(conv.updated_at)} · {conv.message_count} messages
-                    </div>
-                  </div>
-                  
-                  <!-- Actions (visible on hover) -->
-                  <div class="hidden group-hover:flex items-center gap-1 ml-2">
-                    <button
-                      on:click={(e) => startEditing(e, conv)}
-                      class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                      title="Rename"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button
-                      on:click={(e) => handleExport(e, conv.id, 'md')}
-                      class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                      title="Export"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                    </button>
-                    <button
-                      on:click={(e) => handleDelete(e, conv.id)}
-                      class="p-1 text-gray-400 hover:text-red-500"
-                      title="Delete"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
+          {#if editingId === conv.id}
+            <input
+              type="text"
+              bind:value={editingTitle}
+              on:blur={saveTitle}
+              on:keydown={handleEditKeydown}
+              class="w-full px-2 py-1 text-sm rounded border border-blue-500 bg-white dark:bg-black text-gray-900 dark:text-white focus:outline-none"
+              autofocus
+            />
+          {:else}
+            <div class="flex items-center justify-between w-full">
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  {conv.title}
                 </div>
-              {/if}
+                <div class="text-xs text-gray-400 mt-0.5">
+                  {formatDate(conv.updated_at)} · {conv.message_count} messages
+                </div>
+              </div>
+                <div class="relative">
+                  <button
+                    on:click|stopPropagation={() => toggleActions(conv.id)}
+                    class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12h.01M12 19h.01" />
+                    </svg>
+                  </button>
+                {#if activeActionsId === conv.id}
+                  <div class="absolute right-0 mt-2 w-56 bg-white dark:bg-black border border-gray-200 dark:border-white/10 rounded-md shadow-lg z-20">
+                    <div class="py-1">
+                      <button
+                        on:click={(e) => startEditing(e, conv)}
+                        class="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
+                      >
+                        Rename
+                      </button>
+                      <button
+                        on:click={(e) => handleExport(e, conv.id, 'md')}
+                        class="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
+                      >
+                        Export
+                      </button>
+                      <button
+                        on:click={(e) => handleDelete(e, conv.id)}
+                        class="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-white/10"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+            </div>
+          {/if}
             </button>
           </li>
         {/each}

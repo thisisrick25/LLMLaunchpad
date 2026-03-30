@@ -34,6 +34,20 @@ class StopRequest(BaseModel):
 class ModeRequest(BaseModel):
     """Request to change performance mode."""
     mode: str  # auto, gpu-heavy, cpu-only, cloud
+    force_restart: Optional[bool] = None  # Force restart even if dynamic update possible
+
+
+class OptimizeRequest(BaseModel):
+    """Request to optimize GPU layers for current model and mode."""
+    model: str  # Model name or path
+    context_size: int = 4096
+
+
+class ConfigUpdateRequest(BaseModel):
+    """Request to update server configuration."""
+    mode: Optional[str] = None
+    context_size: Optional[int] = None
+    gpu_layers: Optional[int] = None
 
 
 # Routes
@@ -200,29 +214,6 @@ async def get_mode():
     }
 
 
-@router.post("/mode")
-async def set_mode(request: ModeRequest):
-    """Set performance mode."""
-    # Validate mode
-    try:
-        mode = PerformanceMode(request.mode.lower())
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid mode: {request.mode}. Must be one of: {[m.value for m in PerformanceMode]}"
-        )
-    
-    # Update config
-    config = get_config()
-    config.mode = mode.value
-    save_config(config)
-    
-    return {
-        "mode": mode.value,
-        "message": "Mode updated. Restart the server for changes to take effect.",
-    }
-
-
 @router.get("/logs")
 async def stream_logs():
     """
@@ -287,45 +278,133 @@ async def get_server_config():
 
 
 @router.post("/config")
-async def update_server_config(
-    mode: Optional[str] = None,
-    context_size: Optional[int] = None,
-    gpu_layers: Optional[int] = None,
-):
+async def update_server_config(request: ConfigUpdateRequest):
     """Update server configuration."""
+    print(f"DEBUG: Received request - mode: {request.mode}, context_size: {request.context_size}, gpu_layers: {request.gpu_layers}")
     config = get_config()
+    print(f"DEBUG: Current config before update - mode: {config.mode}, context_size: {config.context_size}, gpu_layers: {config.gpu_layers}")
     
-    if mode is not None:
+    if request.mode is not None:
         try:
-            PerformanceMode(mode.lower())
-            config.mode = mode.lower()
+            mode_enum = PerformanceMode(request.mode.lower())
+            config.mode = mode_enum.value
+            print(f"DEBUG: Set mode to {config.mode}")
         except ValueError:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid mode: {mode}"
+                detail=f"Invalid mode: {request.mode}"
             )
     
-    if context_size is not None:
-        if context_size < 128 or context_size > 131072:
+    if request.context_size is not None:
+        if request.context_size < 128 or request.context_size > 131072:
             raise HTTPException(
                 status_code=400,
                 detail="Context size must be between 128 and 131072"
             )
-        config.context_size = context_size
+        config.context_size = request.context_size
+        print(f"DEBUG: Set context_size to {config.context_size}")
     
-    if gpu_layers is not None:
-        if gpu_layers < 0:
+    if request.gpu_layers is not None:
+        if request.gpu_layers < 0:
             raise HTTPException(
                 status_code=400,
                 detail="GPU layers must be >= 0"
             )
-        config.gpu_layers = gpu_layers
+        config.gpu_layers = request.gpu_layers
+        print(f"DEBUG: Set gpu_layers to {config.gpu_layers}")
     
+    print(f"DEBUG: About to call save_config with config - mode: {config.mode}, context_size: {config.context_size}, gpu_layers: {config.gpu_layers}")
     save_config(config)
+    print(f"DEBUG: save_config called")
     
     return {
         "message": "Configuration updated",
         "mode": config.mode,
         "context_size": config.context_size,
         "gpu_layers": config.gpu_layers,
+    }
+
+
+@router.post("/optimize")
+async def optimize_performance(request: OptimizeRequest):
+    """
+    Optimize GPU layers for the current model and mode without restart.
+    Recalculates optimal GPU layers and applies them via API if supported.
+    """
+    server = get_llama_server()
+    
+    # Check if server is running
+    if server.state != LlamaServerState.RUNNING:
+        raise HTTPException(
+            status_code=400,
+            detail="Server is not running. Start it first."
+        )
+    
+    # Find the model
+    model = find_model_by_name(request.model)
+    if not model:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model not found: {request.model}"
+        )
+    
+    # Get current config
+    config = get_config()
+    
+    # Calculate optimal GPU layers for current mode
+    recommendation = calculate_offload(
+        model_path=model.path,
+        context_size=request.context_size,
+        mode=config.mode,
+    )
+    
+    # Check if we can update GPU layers dynamically
+    # For now, we'll require a restart as llama-server doesn't support dynamic GPU layer updates
+    # In a future version, we could check if the version supports it or use SIGHUP
+    
+    return {
+        "success": True,
+        "current_gpu_layers": server.get_status().gpu_layers,
+        "recommended_gpu_layers": recommendation.gpu_layers,
+        "requires_restart": True,  # llama-server doesn't support dynamic GPU layer updates yet
+        "recommendation": recommendation.to_dict(),
+        "message": f"Optimization complete. Restart server to apply {recommendation.gpu_layers} GPU layers."
+    }
+
+
+@router.post("/mode")
+async def set_mode(request: ModeRequest):
+    """Set performance mode."""
+    # Validate mode
+    try:
+        mode = PerformanceMode(request.mode.lower())
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid mode: {request.mode}. Must be one of: {[m.value for m in PerformanceMode]}"
+        )
+    
+    # Update config
+    config = get_config()
+    config.mode = mode.value
+    save_config(config)
+    
+    # Check if we can apply mode change without restart
+    server = get_llama_server()
+    can_apply_dynamically = False
+    requires_restart = True
+    
+    if server.state == LlamaServerState.RUNNING and not request.force_restart:
+        # Check if we're switching between modes that could potentially be applied dynamically
+        current_mode = config.mode  # This is the new mode we just set
+        # For now, we'll require restart for all mode changes as llama-server 
+        # doesn't support dynamic GPU layer updates
+        requires_restart = True
+        can_apply_dynamically = False
+    
+    return {
+        "mode": mode.value,
+        "requires_restart": requires_restart,
+        "can_apply_dynamically": can_apply_dynamically,
+        "message": "Mode updated. " + ("Changes will take effect immediately." if can_apply_dynamically else "Restart the server for changes to take effect.")
     }

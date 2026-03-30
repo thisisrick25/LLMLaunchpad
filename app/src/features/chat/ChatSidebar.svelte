@@ -19,7 +19,8 @@
   }
 
   onMount(() => {
-    chatStore.loadConversations();
+    // chatStore.loadConversations();
+    console.log('Conversations loaded:', $conversations);
   });
 
   function handleNewChat() {
@@ -145,6 +146,7 @@
 
   <!-- Conversations list -->
   <div class="flex-1 overflow-y-auto">
+    <div class="p-1 text-[10px] text-gray-400">Debug: {$conversations.length} chats</div>
     {#if $searchResults.length > 0}
       <!-- Search results -->
       <ul class="py-2">
@@ -229,10 +231,10 @@
               {#if editingId !== conv.id}
                 <!-- 3-dot menu button - visible on hover or if active -->
                 <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center {activeActionsId === conv.id ? 'flex' : 'hidden group-hover:flex'}">
-                  <button
-                    on:click|stopPropagation={() => toggleActions(conv.id)}
-                    class="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-white/10 rounded-md transition-colors"
-                  >
+<button
+  on:click|stopPropagation={() => toggleActions(conv.id)}
+  class="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-md transition-colors"
+>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12h.01M12 19h.01" />
                     </svg>

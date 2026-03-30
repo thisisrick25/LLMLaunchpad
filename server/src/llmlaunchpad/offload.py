@@ -105,15 +105,54 @@ def estimate_layers_from_size(model_size_bytes: int) -> int:
         return 80
 
 
-def estimate_context_memory(context_size: int, model_layers: int, hidden_dim: int = 4096) -> int:
+def estimate_hidden_dim_from_size(model_size_bytes: int) -> int:
+    """
+    Estimate hidden dimension based on model size.
+    This is a heuristic based on common model architectures.
+    """
+    size_gb = model_size_bytes / (1024 ** 3)
+    
+    # Heuristic for hidden dimension based on model size
+    if size_gb < 1:      # < 1B parameters
+        return 1024
+    elif size_gb < 2:    # 1-2B parameters
+        return 2048
+    elif size_gb < 4:    # 2-4B parameters
+        return 2560
+    elif size_gb < 8:    # 4-8B parameters
+        return 3072
+    elif size_gb < 15:   # 8-15B parameters
+        return 4096
+    elif size_gb < 30:   # 15-30B parameters
+        return 5120
+    else:                # 30B+ parameters
+        return 6144
+
+
+def estimate_context_memory(context_size: int, model_layers: int, model_size_bytes: int = 0, hidden_dim: Optional[int] = None) -> int:
     """
     Estimate memory needed for KV cache.
     
     KV cache formula (approximate):
-    2 * layers * context * hidden_dim * 2 (for K and V) * bytes_per_element
+    2 * layers * context * hidden_dim * bytes_per_element
     
     For Q4 models, KV cache is typically in FP16.
     """
+    # Backward compatibility: if model_size_bytes looks like a hidden_dim (reasonable range)
+    # and hidden_dim is not explicitly provided, treat model_size_bytes as hidden_dim
+    if hidden_dim is None and model_size_bytes > 0 and model_size_bytes < 10000:
+        # Assume model_size_bytes is actually hidden_dim for backward compatibility
+        hidden_dim = model_size_bytes
+        model_size_bytes = 0  # Reset to trigger estimation
+    
+    # If hidden_dim is not provided, estimate it from model size
+    if hidden_dim is None:
+        if model_size_bytes == 0:
+            # Fallback to a reasonable default if no model size provided
+            hidden_dim = 4096
+        else:
+            hidden_dim = estimate_hidden_dim_from_size(model_size_bytes)
+    
     # FP16 = 2 bytes per element
     bytes_per_element = 2
     
@@ -147,7 +186,7 @@ def estimate_model_memory(
     bytes_per_layer = model_size // layer_count if layer_count > 0 else model_size
     
     # Context/KV cache memory
-    context_memory = estimate_context_memory(context_size, layer_count)
+    context_memory = estimate_context_memory(context_size, layer_count, model_size, model_size)
     
     return ModelMemoryEstimate(
         total_size_bytes=model_size,
@@ -169,6 +208,7 @@ def calculate_optimal_layers(
     Returns (gpu_layers, estimated_vram_usage_mb)
     """
     if available_vram_mb <= 0:
+        logger.debug("No VRAM available, returning 0 GPU layers")
         return 0, 0
     
     # Reserve some VRAM for context/KV cache and overhead
@@ -176,12 +216,14 @@ def calculate_optimal_layers(
     usable_vram_mb = (available_vram_mb * safety_margin) - context_mb
     
     if usable_vram_mb <= 0:
+        logger.debug(f"Insufficient VRAM after context reservation: {usable_vram_mb:.2f} MB usable")
         return 0, 0
     
     # Calculate how many layers fit
     bytes_per_layer_mb = model_estimate.bytes_per_layer / (1024 ** 2)
     
     if bytes_per_layer_mb <= 0:
+        logger.debug("Invalid bytes per layer calculation")
         return 0, 0
     
     max_layers = int(usable_vram_mb / bytes_per_layer_mb)
@@ -189,8 +231,17 @@ def calculate_optimal_layers(
     # Cap at actual layer count
     gpu_layers = min(max_layers, model_estimate.layer_count)
     
-    # Calculate estimated VRAM usage
+    # Additional validation: ensure we don't exceed physical VRAM limits
     estimated_vram = int((gpu_layers * bytes_per_layer_mb) + context_mb)
+    if estimated_vram > available_vram_mb:
+        logger.warning(f"Estimated VRAM usage ({estimated_vram} MB) exceeds available ({available_vram_mb} MB), reducing layers")
+        # Recalculate with reduced layers to fit within available VRAM
+        excess_mb = estimated_vram - available_vram_mb
+        layers_to_remove = int(excess_mb / bytes_per_layer_mb) + 1  # Add 1 for safety
+        gpu_layers = max(0, gpu_layers - layers_to_remove)
+        estimated_vram = int((gpu_layers * bytes_per_layer_mb) + context_mb)
+    
+    logger.debug(f"Calculated optimal layers: {gpu_layers}/{model_estimate.layer_count}, estimated VRAM: {estimated_vram} MB")
     
     return gpu_layers, estimated_vram
 
@@ -233,6 +284,7 @@ def calculate_offload(
     
     # Handle different modes
     if perf_mode == PerformanceMode.CPU_ONLY:
+        logger.debug("CPU-only mode selected")
         return OffloadRecommendation(
             gpu_layers=0,
             total_layers=model_estimate.layer_count,
@@ -242,6 +294,7 @@ def calculate_offload(
         )
     
     if perf_mode == PerformanceMode.CLOUD:
+        logger.debug("Cloud mode selected - local inference disabled")
         return OffloadRecommendation(
             gpu_layers=0,
             total_layers=model_estimate.layer_count,
@@ -252,6 +305,7 @@ def calculate_offload(
     
     # Check if we have a GPU
     if not hardware_info.has_gpu:
+        logger.debug("No GPU detected")
         return OffloadRecommendation(
             gpu_layers=0,
             total_layers=model_estimate.layer_count,
@@ -265,29 +319,68 @@ def calculate_offload(
     free_vram_mb = sum(gpu.memory_free_mb for gpu in hardware_info.gpus)
     
     if perf_mode == PerformanceMode.GPU_HEAVY:
-        # Use total VRAM, allow for some swapping
+        # Use total VRAM with safety margin for GPU-Heavy mode
         available_vram = total_vram_mb
-        safety_margin = 0.95
+        safety_margin = 0.90  # Allow 90% utilization for GPU-Heavy mode
+        logger.debug(f"GPU-Heavy mode: using total VRAM ({total_vram_mb} MB) with safety margin {safety_margin}")
     else:  # AUTO
-        # Use free VRAM with safety margin
+        # Use free VRAM with more conservative safety margin for Auto mode
         available_vram = free_vram_mb
-        safety_margin = 0.85
+        safety_margin = 0.75  # More conservative (75%) for Auto mode to prevent OOM
+        logger.debug(f"Auto mode: using free VRAM ({free_vram_mb} MB) with safety margin {safety_margin}")
     
-    # Calculate optimal layers
+    # Validate available VRAM
+    if available_vram <= 0:
+        logger.warning("No VRAM available for GPU offload")
+        return OffloadRecommendation(
+            gpu_layers=0,
+            total_layers=model_estimate.layer_count,
+            estimated_vram_mb=0,
+            mode=perf_mode,
+            reason="No VRAM available for GPU offload",
+        )
+    
+    # Calculate optimal layers with improved validation
     gpu_layers, estimated_vram = calculate_optimal_layers(
         available_vram,
         model_estimate,
         safety_margin,
     )
     
-    # Generate reason
+    # Additional validation: ensure calculated layers don't exceed model's actual layers
+    if gpu_layers > model_estimate.layer_count:
+        logger.warning(f"Calculated GPU layers ({gpu_layers}) exceeds model layer count ({model_estimate.layer_count}), capping")
+        gpu_layers = model_estimate.layer_count
+        # Recalculate estimated VRAM with capped layers
+        bytes_per_layer_mb = model_estimate.bytes_per_layer / (1024 ** 2)
+        context_mb = model_estimate.context_memory_bytes / (1024 ** 2)
+        estimated_vram = int((gpu_layers * bytes_per_layer_mb) + context_mb)
+    
+    # Final validation: ensure we don't exceed physical VRAM limits
+    if estimated_vram > available_vram:
+        logger.warning(f"Estimated VRAM usage ({estimated_vram} MB) exceeds available ({available_vram} MB), reducing layers")
+        # Recalculate with reduced layers to fit within available VRAM
+        excess_mb = estimated_vram - available_vram
+        bytes_per_layer_mb = model_estimate.bytes_per_layer / (1024 ** 2)
+        if bytes_per_layer_mb > 0:
+            layers_to_remove = int(excess_mb / bytes_per_layer_mb) + 1  # Add 1 for safety
+            gpu_layers = max(0, gpu_layers - layers_to_remove)
+            # Recalculate estimated VRAM
+            context_mb = model_estimate.context_memory_bytes / (1024 ** 2)
+            estimated_vram = int((gpu_layers * bytes_per_layer_mb) + context_mb)
+    
+    # Generate more informative reason
     if gpu_layers >= model_estimate.layer_count:
         reason = f"Full GPU offload ({gpu_layers}/{model_estimate.layer_count} layers)"
+        logger.debug(reason)
     elif gpu_layers > 0:
         pct = int((gpu_layers / model_estimate.layer_count) * 100)
-        reason = f"Partial GPU offload ({gpu_layers}/{model_estimate.layer_count} layers, {pct}%)"
+        vram_percent = int((estimated_vram / available_vram) * 100) if available_vram > 0 else 0
+        reason = f"Partial GPU offload ({gpu_layers}/{model_estimate.layer_count} layers, {pct}%) using {estimated_vram} MB VRAM ({vram_percent}% of available)"
+        logger.debug(reason)
     else:
-        reason = "Insufficient VRAM for GPU offload"
+        reason = f"Insufficient VRAM for GPU offload (need ~{int(model_estimate.bytes_per_layer / (1024**2))} MB per layer, have {available_vram} MB)"
+        logger.debug(reason)
     
     return OffloadRecommendation(
         gpu_layers=gpu_layers,

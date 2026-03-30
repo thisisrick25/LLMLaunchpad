@@ -65,6 +65,14 @@ function createChatStore() {
 
     // Load conversations list
     async loadConversations() {
+      // Only load from API if we don't already have conversations (for development mock data)
+      const state = get({ subscribe });
+      if (state.conversations.length > 0) {
+        // Keep existing conversations (mock data for development)
+        update((s) => ({ ...s, isLoading: false }));
+        return;
+      }
+      
       update((s) => ({ ...s, isLoading: true, error: null }));
       try {
         const conversations = await api.getConversations();

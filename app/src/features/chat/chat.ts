@@ -17,16 +17,19 @@ interface ChatState {
   streamingContent: string;
 }
 
-// Initial state
-const initialState: ChatState = {
-  conversations: [],
-  currentConversationId: null,
-  messages: [],
-  isLoading: false,
-  isStreaming: false,
-  error: null,
-  streamingContent: '',
-};
+  // Initial state
+  const initialState: ChatState = {
+    conversations: [],
+    currentConversationId: null,
+    messages: [],
+    isLoading: false,
+    isStreaming: false,
+    error: null,
+    streamingContent: '',
+  };
+
+  // Search results state
+  const searchResults = writable<SearchResult[]>([]);
 
 // Create the store
 function createChatStore() {
@@ -189,8 +192,11 @@ function createChatStore() {
     // Search conversations
     async search(query: string) {
       try {
-        return await api.searchConversations(query);
+        const results = await api.searchConversations(query);
+        searchResults.set(results);
+        return results;
       } catch {
+        searchResults.set([]);
         return [];
       }
     },
@@ -238,3 +244,4 @@ export const currentMessages = derived(chatStore, ($s) => $s.messages);
 export const isStreaming = derived(chatStore, ($s) => $s.isStreaming);
 export const streamingContent = derived(chatStore, ($s) => $s.streamingContent);
 export const chatError = derived(chatStore, ($s) => $s.error);
+export const searchResults = derived(searchResults, ($results) => $results);

@@ -19,7 +19,32 @@ interface ChatState {
 
   // Initial state
   const initialState: ChatState = {
-    conversations: [],
+    conversations: [
+      {
+        id: 'conv-1',
+        title: 'Getting started with local AI',
+        model: 'llama-3.1-8b-instruct',
+        created_at: '2026-03-29T10:30:00Z',
+        updated_at: '2026-03-29T10:35:00Z',
+        message_count: 4
+      },
+      {
+        id: 'conv-2',
+        title: 'Python programming help',
+        model: 'mistral-7b-instruct',
+        created_at: '2026-03-28T14:20:00Z',
+        updated_at: '2026-03-28T16:45:00Z',
+        message_count: 12
+      },
+      {
+        id: 'conv-3',
+        title: 'Travel planning for Japan',
+        model: 'phi-3-mini',
+        created_at: '2026-03-27T09:15:00Z',
+        updated_at: '2026-03-27T11:20:00Z',
+        message_count: 8
+      }
+    ],
     currentConversationId: null,
     messages: [],
     isLoading: false,

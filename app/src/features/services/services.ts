@@ -14,6 +14,9 @@ interface ServicesState {
   logs: string[];
   isLoading: boolean;
   error: string | null;
+  manualGpuLayers: number | null;
+  vramUsage: number | null;
+  vramTotal: number | null;
 }
 
 // Initial state
@@ -24,6 +27,9 @@ const initialState: ServicesState = {
   logs: [],
   isLoading: false,
   error: null,
+  manualGpuLayers: null,
+  vramUsage: null,
+  vramTotal: null,
 };
 
 // Create the store
@@ -31,6 +37,7 @@ function createServicesStore() {
   const { subscribe, set, update } = writable<ServicesState>(initialState);
 
   let logEventSource: EventSource | null = null;
+  let vramPollingInterval: number | null = null;
 
   return {
     subscribe,
@@ -120,6 +127,37 @@ function createServicesStore() {
       }
     },
 
+    // Set manual GPU layers override
+    setManualGpuLayers(layers: number | null) {
+      update((s) => ({ ...s, manualGpuLayers: layers }));
+    },
+
+    // Start VRAM monitoring
+    startVramMonitoring() {
+      // Poll every 5 seconds
+      vramPollingInterval = setInterval(async () => {
+        try {
+          const hardware = await api.getHardware();
+          update((s) => ({
+            ...s,
+            vramTotal: hardware.total_vram_gb * 1024, // Convert to MB
+            vramUsage: hardware.total_vram_gb * 1024 - hardware.ram_available_gb * 1024, // Approximate VRAM usage
+          }));
+        } catch (error) {
+          // Silently ignore VRAM monitoring errors to avoid spamming
+          console.debug('VRAM monitoring error:', error);
+        }
+      }, 5000);
+    },
+
+    // Stop VRAM monitoring
+    stopVramMonitoring() {
+      if (vramPollingInterval) {
+        clearInterval(vramPollingInterval);
+        vramPollingInterval = null;
+      }
+    },
+
     // Start streaming logs
     startLogStream() {
       if (logEventSource) {
@@ -163,6 +201,7 @@ function createServicesStore() {
     // Reset store
     reset() {
       this.stopLogStream();
+      this.stopVramMonitoring();
       set(initialState);
     },
   };
@@ -178,3 +217,6 @@ export const isServerRunning = derived(servicesStore, ($s) => $s.serverStatus?.s
 export const currentMode = derived(servicesStore, ($s) => $s.mode);
 export const serviceLogs = derived(servicesStore, ($s) => $s.logs);
 export const servicesError = derived(servicesStore, ($s) => $s.error);
+export const manualGpuLayers = derived(servicesStore, ($s) => $s.manualGpuLayers);
+export const vramUsage = derived(servicesStore, ($s) => $s.vramUsage);
+export const vramTotal = derived(servicesStore, ($s) => $s.vramTotal);

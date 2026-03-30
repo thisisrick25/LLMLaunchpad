@@ -70,6 +70,9 @@ This roadmap outlines the phased approach to building the LLMLaunchpad platform 
 
 ## Phase 4: Performance Controls & Hardware Optimization
 **Objective**: Implement dynamic GPU/CPU offloading and performance modes.
+**Status**: [x] Complete
+**Plans**: 1 plans
+- [x] 5-performance-controls-01-PLAN.md — Enhance performance controls and hardware optimization to provide users with intelligent GPU/CPU offloading, multiple performance modes, and safe defaults for optimal local AI execution across different hardware configurations
 
 **Key Deliverables**:
 - Four performance modes: Auto, GPU-Heavy, CPU-Only, Cloud

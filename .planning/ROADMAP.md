@@ -101,6 +101,9 @@ This roadmap outlines the phased approach to building the LLMLaunchpad platform 
 
 ## Phase 6: Conversation History & Search
 **Objective**: Implement persistent chat history with search and export capabilities.
+**Status**: [x] Complete
+**Plans**: 1 plans
+- [x] 6-conversation-history-search-01-PLAN.md — Implement persistent chat history with search and export capabilities
 
 **Key Deliverables**:
 - Full-text search (SQLite FTS5) on chat history

@@ -7,6 +7,9 @@
     isServerRunning,
     currentMode,
     servicesError,
+    manualGpuLayers,
+    vramUsage,
+    vramTotal,
   } from './services';
   import type { LocalModel } from '../../shared/types';
 
@@ -15,18 +18,31 @@
 
   let contextSize = 4096;
   let showAdvanced = false;
+  let manualGpuLayersOverride = '';
 
   onMount(() => {
     servicesStore.loadStatus();
+    servicesStore.startVramMonitoring();
+  });
+
+  onDestroy(() => {
+    servicesStore.stopVramMonitoring();
   });
 
   async function handleStart() {
     if (!selectedModel) return;
-    await servicesStore.start({
+    const startRequest = {
       model: selectedModel.name,
       mode: $currentMode,
       context_size: contextSize,
-    });
+    };
+    
+    // Add manual GPU layers override if set
+    if ($manualGpuLayers !== null) {
+      startRequest.gpu_layers = $manualGpuLayers;
+    }
+    
+    await servicesStore.start(startRequest);
   }
 
   async function handleStop() {
@@ -72,8 +88,17 @@
   }
 
   function formatBytes(bytes: number): string {
+    if (bytes === null || bytes === 0) return '0 GB';
     const gb = bytes / (1024 ** 3);
     return `${gb.toFixed(1)} GB`;
+  }
+
+  function formatVRAM(usage: number | null, total: number | null): string {
+    if (usage === null || total === null || total === 0) return 'VRAM: N/A';
+    const usageGB = usage / 1024;
+    const totalGB = total / 1024;
+    const percent = ((usage / total) * 100).toFixed(0);
+    return `VRAM: ${usageGB.toFixed(1)} GB / ${totalGB.toFixed(1)} GB (${percent}%)`;
   }
 </script>
 
@@ -167,25 +192,71 @@
         {showAdvanced ? 'Hide' : 'Show'} advanced options
       </button>
 
-      {#if showAdvanced}
-        <div class="space-y-3 pl-2 border-l-2 border-gray-200 dark:border-white/10">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Context Size
-            </label>
-            <select
-              bind:value={contextSize}
-              class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-black text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none"
-            >
-              <option value={2048}>2K</option>
-              <option value={4096}>4K (Default)</option>
-              <option value={8192}>8K</option>
-              <option value={16384}>16K</option>
-              <option value={32768}>32K</option>
-            </select>
-          </div>
-        </div>
-      {/if}
+       {#if showAdvanced}
+         <div class="space-y-3 pl-2 border-l-2 border-gray-200 dark:border-white/10">
+           <div>
+             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+               Context Size
+             </label>
+             <select
+               bind:value={contextSize}
+               class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-black text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none"
+             >
+               <option value={2048}>2K</option>
+               <option value={4096}>4K (Default)</option>
+               <option value={8192}>8K</option>
+               <option value={16384}>16K</option>
+               <option value={32768}>32K</option>
+             </select>
+           </div>
+           
+           <div>
+             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+               Manual GPU Layers Override
+             </label>
+             <div class="flex items-center space-x-2">
+               <input
+                 type="number"
+                 bind:value={manualGpuLayersOverride}
+                 min="0"
+                 max="200"
+                 class="w-20 px-3 py-2 rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-black text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none"
+               />
+               <span class="text-xs text-gray-500">layers</span>
+               <button
+                 on:click={() => {
+                   servicesStore.setManualGpuLayers(manualGpuLayersOverride === '' ? null : parseInt(manualGpuLayersOverride));
+                 }}
+                 class="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+               >
+                 Apply
+               </button>
+             </div>
+             {#if $manualGpuLayers !== null}
+               <p class="mt-1 text-xs text-green-600">
+                 Manual override active: {$manualGpuLayers} GPU layers
+               </p>
+             {/if}
+           </div>
+           
+           <div>
+             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+               VRAM Monitoring
+             </label>
+             <div class="space-y-1">
+               <p class="text-xs text-gray-500">{formatVRAM($vramUsage, $vramTotal)}</p>
+               {#if $vramUsage !== null && $vramTotal !== null}
+                 <div class="w-full bg-gray-200 dark:bg-gray-700 rounded h-2">
+                   <div
+                     class="bg-blue-600 h-2 rounded"
+                     style="width: {($vramUsage / $vramTotal) * 100}%"
+                   ></div>
+                 </div>
+               {/if}
+             </div>
+           </div>
+         </div>
+       {/if}
     </div>
   {:else}
     <!-- Running server info -->

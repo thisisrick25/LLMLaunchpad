@@ -176,15 +176,15 @@
                           <div class="border-t border-gray-100 dark:border-white/5"></div>
                           <button
                             on:click={(e) => handleDelete(e, conv.id)}
-                            class="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            class="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:red-900/20"
                           >
                             Delete
                           </button>
                         </div>
                       {/if}
                     </div>
-                  </div>
-                {/if}
+                  {/if}
+                </div>
               </div>
             </div>
           </li>

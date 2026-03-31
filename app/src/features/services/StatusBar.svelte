@@ -4,6 +4,7 @@
   import type { HardwareInfo } from '../../shared/types';
 
   export let hardware: HardwareInfo | null = null;
+export let error: string | null = null;
 
   let showLogs = false;
   let logsContainer: HTMLDivElement;
@@ -49,55 +50,63 @@
   }
 </script>
 
-<!-- Status Bar -->
-<div class="bg-white dark:bg-black border-t border-gray-200 dark:border-white/10 text-gray-900 dark:text-white px-4 py-2 text-sm flex items-center justify-between">
-  <div class="flex items-center gap-4">
-    <!-- Server status -->
-    <div class="flex items-center gap-2">
-      <svg class="w-4 h-4 {getStateColor($serverState)}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={getStateIcon($serverState)} />
-      </svg>
-      <span class="text-gray-700 dark:text-gray-300">
-        llama.cpp: <span class="{getStateColor($serverState)} font-medium">
-          {$serverState === 'running' ? 'Running' : $serverState === 'stopped' ? 'Stopped' : $serverState}
-        </span>
-      </span>
+  <!-- Status Bar -->
+  <div class="bg-white dark:bg-black border-t border-gray-200 dark:border-white/10 text-gray-900 dark:text-white px-4 py-2 text-sm flex items-center justify-between">
+    <div class="flex items-center gap-4">
+      {#if error}
+        <!-- Error status -->
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+          <span class="text-red-500">{error}</span>
+        </div>
+      {:else}
+        <!-- Server status -->
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 {getStateColor($serverState)}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={getStateIcon($serverState)} />
+          </svg>
+          <span class="text-gray-700 dark:text-gray-300">
+            llama.cpp: <span class="{getStateColor($serverState)} font-medium">
+              {$serverState === 'running' ? 'Running' : $serverState === 'stopped' ? 'Stopped' : $serverState}
+            </span>
+          </span>
+        </div>
+
+        <!-- Hardware info -->
+        {#if hardware}
+          <div class="flex items-center gap-4 text-gray-500 dark:text-gray-400 border-l border-gray-200 dark:border-white/10 pl-4">
+            <span title={hardware.cpu_name}>
+              CPU: {hardware.cpu_count} cores
+            </span>
+            <span>
+              RAM: {hardware.ram_available_gb.toFixed(1)}/{hardware.ram_total_gb.toFixed(1)} GB
+            </span>
+            {#if hardware.has_gpu}
+              <span>
+                GPU: {hardware.total_vram_gb.toFixed(1)} GB VRAM
+              </span>
+            {/if}
+          </div>
+        {/if}
+      {/if}
     </div>
 
-    <!-- Hardware info -->
-    {#if hardware}
-      <div class="flex items-center gap-4 text-gray-500 dark:text-gray-400 border-l border-gray-200 dark:border-white/10 pl-4">
-        <span title={hardware.cpu_name}>
-          CPU: {hardware.cpu_count} cores
+    <!-- Log toggle -->
+    <button
+      on:click={() => showLogs = !showLogs}
+      class="flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+      </svg>
+      <span>Logs</span>
+      {#if $serviceLogs.length > 0}
+        <span class="bg-gray-200 dark:bg-white/10 text-xs px-1.5 py-0.5 rounded-full">
+          {$serviceLogs.length}
         </span>
-        <span>
-          RAM: {hardware.ram_available_gb.toFixed(1)}/{hardware.ram_total_gb.toFixed(1)} GB
-        </span>
-        {#if hardware.has_gpu}
-          <span>
-            GPU: {hardware.total_vram_gb.toFixed(1)} GB VRAM
-          </span>
-        {/if}
-      </div>
-    {/if}
+      {/if}
+    </button>
   </div>
-
-  <!-- Log toggle -->
-  <button
-    on:click={() => showLogs = !showLogs}
-    class="flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-  >
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-    </svg>
-    <span>Logs</span>
-    {#if $serviceLogs.length > 0}
-      <span class="bg-gray-200 dark:bg-white/10 text-xs px-1.5 py-0.5 rounded-full">
-        {$serviceLogs.length}
-      </span>
-    {/if}
-  </button>
-</div>
 
 <!-- Log viewer panel -->
 {#if showLogs}

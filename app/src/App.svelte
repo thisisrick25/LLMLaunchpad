@@ -25,13 +25,14 @@ import { initTheme, toggleTheme, theme } from './shared/theme';
   let selectedModel: LocalModel | null = null;
 
   // Load initial status
-onMount(async () => {
+  onMount(async () => {
       // Initialize theme first (reads system preference / saved value)
       initTheme();
 
       try {
         status = await api.getStatus();
         hardware = status?.hardware || null;
+        error = null; // Clear error on successful connection
       } catch (e) {
         error = e instanceof Error ? e.message : 'Failed to connect to backend';
       } finally {
@@ -137,22 +138,7 @@ function closeControlsModal() {
         <p class="mt-4 text-gray-500 dark:text-gray-400">Connecting to backend...</p>
       </div>
     </div>
-  {:else if error}
-    <div class="flex-1 flex items-center justify-center p-8">
-      <div class="max-w-md w-full bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
-        <h2 class="text-lg font-semibold text-red-800 dark:text-red-200">Connection Error</h2>
-        <p class="mt-2 text-red-600 dark:text-red-300">{error}</p>
-        <p class="mt-4 text-sm text-red-500 dark:text-red-400">
-          Make sure the backend server is running on http://localhost:8000
-        </p>
-        <button
-          on:click={() => window.location.reload()}
-          class="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm"
-        >
-          Retry
-        </button>
-      </div>
-    </div>
+
   {:else}
     <div class="flex-1 flex overflow-hidden">
       <!-- Left Sidebar - Chat History -->

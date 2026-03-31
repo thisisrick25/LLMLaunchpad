@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { chatStore, conversations, searchResults } from './chat';
+  import { chatStore, conversations } from './chat';
   import type { ConversationSummary } from '../../shared/types';
 
   export let currentConversationId: string | null = null;
@@ -30,24 +30,17 @@
     chatStore.loadConversation(id);
   }
 
-  function handleSelectSearchResult(conversationId: string) {
-    chatStore.loadConversation(conversationId);
-    searchQuery = '';
-  }
-
   function handleDelete(e: Event, id: string) {
     e.stopPropagation();
     if (confirm('Delete this conversation?')) {
       chatStore.deleteConversation(id);
     }
-    activeActionsId = null;
   }
 
   function startEditing(e: Event, conv: ConversationSummary) {
     e.stopPropagation();
     editingId = conv.id;
     editingTitle = conv.title;
-    activeActionsId = null;
   }
 
   function saveTitle() {
@@ -75,7 +68,6 @@
     } else {
       await chatStore.exportMarkdown(id);
     }
-    activeActionsId = null;
   }
 
   function formatDate(dateStr: string): string {
@@ -88,13 +80,6 @@
     if (days === 1) return 'Yesterday';
     if (days < 7) return `${days} days ago`;
     return date.toLocaleDateString();
-  }
-
-  // Trigger search when query changes
-  $: if (searchQuery) {
-    chatStore.search(searchQuery);
-  } else {
-    searchResults.set([]);
   }
 </script>
 
@@ -134,130 +119,77 @@
 
   <!-- Conversations list -->
   <div class="flex-1 overflow-y-auto">
-    <div class="p-1 text-[10px] text-gray-400">Debug: {$conversations.length} chats</div>
-    {#if $searchResults.length > 0}
-      <!-- Search results -->
+    {#if $conversations.length === 0}
+      <div class="p-4 text-center text-gray-400 text-sm">
+        {searchQuery ? 'No matching conversations' : 'No conversations yet'}
+      </div>
+    {:else}
       <ul class="py-2">
-        {#each $searchResults as result (result.message_id)}
-          <li class="mb-2 px-2">
-            <div class="p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-white/5">
-              <div class="flex items-start space-x-3">
-                <div class="flex-shrink-0">
-                  {#if result.role === 'user'}
-                    <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 01-7 7h14a7 7 0 01-7-7z" />
-                    </svg>
-                  {:else}
-                    <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  {/if}
-                </div>
-                <div class="flex-1">
-                  <div class="flex items-center justify-between mb-1">
-                    <div class="text-sm font-medium">{#if result.conversation_title}{result.conversation_title}{:else}Untitled{/if}</div>
-                    <div class="text-xs text-gray-500">{formatDate(result.created_at)}</div>
-                  </div>
-                  {#if result.content}
-                    <div class="mt-1">
-                      <p class="text-gray-700 dark:text-gray-200">
-                        {@html result.content.replace(
-                          new RegExp(searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
-                          match => `<mark class="bg-yellow-200 dark:bg-yellow-800 dark:text-white">${match}</mark>`
-                        )}
-                      </p>
+        {#each $conversations as conv (conv.id)}
+          <li class="relative">
+            <div class="flex w-full items-center py-3 px-3 {currentConversationId === conv.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''} hover:bg-gray-100 dark:hover:bg-white/5">
+              {#if editingId === conv.id}
+                <input
+                  type="text"
+                  bind:value={editingTitle}
+                  on:blur={saveTitle}
+                  on:keydown={handleEditKeydown}
+                  class="w-full px-2 py-1 text-sm rounded border border-blue-500 bg-white dark:bg-black text-gray-900 dark:text-white focus:outline-none"
+                  autofocus
+                />
+              {:else}
+                <div class="flex items-center justify-between">
+                  <div class="flex-1">
+                    <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {conv.title}
                     </div>
-                  {/if}
-                  <div class="mt-2 text-xs text-gray-500">
-                    Message from {result.role === 'user' ? 'you' : 'assistant'} in conversation
+                    <div class="text-xs text-gray-400 mt-0.5">
+                      {formatDate(conv.updated_at)} · {conv.message_count} msgs
+                    </div>
                   </div>
-                </div>
-                <div class="mt-2 text-right">
-                  <button
-                    on:click={() => handleSelectSearchResult(result.conversation_id)}
-                    class="text-sm font-medium text-blue-600 hover:text-blue-800"
-                  >
-                    View Conversation
-                  </button>
-                </div>
+                  <!-- 3-dot menu button -->
+                  <div class="relative">
+                    <button
+                      on:click|stopPropagation={() => toggleActions(conv.id)}
+                      class="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-md"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12h.01M12 19h.01" />
+                      </svg>
+                    </button>
+
+                    {#if activeActionsId === conv.id}
+                      <div class="absolute right-0 mt-2 w-48 bg-white dark:bg-black border border-gray-200 dark:border-white/10 rounded-md shadow-lg z-20">
+                        <div class="py-1">
+                          <button
+                            on:click={(e) => startEditing(e, conv)}
+                            class="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
+                          >
+                            Rename
+                          </button>
+                          <button
+                            on:click={(e) => handleExport(e, conv.id, 'md')}
+                            class="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
+                          >
+                            Export
+                          </button>
+                          <div class="border-t border-gray-100 dark:border-white/5"></div>
+                          <button
+                            on:click={(e) => handleDelete(e, conv.id)}
+                            class="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
+                {/if}
               </div>
             </div>
           </li>
         {/each}
       </ul>
-    {:else}
-      <!-- Regular conversations list -->
-      {#if $conversations.length === 0}
-        <div class="p-4 text-center text-gray-400 text-sm">
-          {searchQuery ? 'No matching conversations' : 'No conversations yet'}
-        </div>
-      {:else}
-        <ul class="py-2">
-          {#each $conversations as conv (conv.id)}
-            <li class="relative">
-              <div class="flex w-full items-center py-3 px-3 {currentConversationId === conv.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''} hover:bg-gray-100 dark:hover:bg-white/5">
-                {#if editingId === conv.id}
-                  <input
-                    type="text"
-                    bind:value={editingTitle}
-                    on:blur={saveTitle}
-                    on:keydown={handleEditKeydown}
-                    class="w-full px-2 py-1 text-sm rounded border border-blue-500 bg-white dark:bg-black text-gray-900 dark:text-white focus:outline-none"
-                    autofocus
-                  />
-                {:else}
-                  <div class="flex items-center justify-between">
-                    <div class="flex-1">
-                      <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {conv.title}
-                      </div>
-                      <div class="text-xs text-gray-400 mt-0.5">
-                        {formatDate(conv.updated_at)} · {conv.message_count} msgs
-                      </div>
-                    </div>
-                    <!-- 3-dot menu button -->
-                    <div class="relative">
-                      <button
-                        on:click|stopPropagation={() => toggleActions(conv.id)}
-                        class="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-md"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12h.01M12 19h.01" />
-                        </svg>
-                      </button>
-
-                      {#if activeActionsId === conv.id}
-                        <div class="absolute right-0 top-full w-48 bg-white dark:bg-black border border-gray-200 dark:border-white/10 rounded-md shadow-lg z-20">
-                          <div class="py-1">
-                            <button
-                              on:click={(e) => startEditing(e, conv)}
-                              class="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
-                            >
-                              Rename
-                            </button>
-                            <button
-                              on:click={(e) => handleExport(e, conv.id, 'md')}
-                              class="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
-                            >
-                              Export
-                            </button>
-                            <div class="border-t border-gray-100 dark:border-white/5"></div>
-                            <button
-                              on:click={(e) => handleDelete(e, conv.id)}
-                              class="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      {/if}
-                    </div>
-                  {/if}
-                </div>
-              </li>
-          {/each}
-        </ul>
-      {/if}
     {/if}
   </div>
 </div>

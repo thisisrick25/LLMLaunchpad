@@ -170,66 +170,65 @@
                    autofocus
                  />
                {:else}
-                  <div class="flex items-center gap-2">
-                    <!-- 3-dot menu button -->
-                    <div class="relative">
-                      <button
-                        on:click|stopPropagation={() => toggleActions(conv.id)}
-                        class="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-md"
-                      >
-                        <svg
-                          class="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M12 5v.01M12 12h.01M12 19h.01"
-                          />
-                        </svg>
-                      </button>
+                 <div class="flex items-center">
+                   <div class="flex-1">
+                     <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                       {conv.title}
+                     </div>
+                     <div class="text-xs text-gray-400 mt-0.5">
+                       {formatDate(conv.updated_at)} · {conv.message_count} msgs
+                     </div>
+                   </div>
+                   <!-- 3-dot menu button -->
+<div class="relative ml-auto">
+                     <button
+                       on:click|stopPropagation={() => toggleActions(conv.id)}
+                       class="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-md"
+                     >
+                       <svg
+                         class="w-4 h-4"
+                         fill="none"
+                         stroke="currentColor"
+                         viewBox="0 0 24 24"
+                       >
+                         <path
+                           stroke-linecap="round"
+                           stroke-linejoin="round"
+                           stroke-width="2"
+                           d="M12 5v.01M12 12h.01M12 19h.01"
+                         />
+                       </svg>
+                     </button>
 
-                      {#if activeActionsId === conv.id}
-                        <div
-                          class="absolute left-0 mt-2 w-48 bg-white dark:bg-black border border-gray-200 dark:border-white/10 rounded-md shadow-lg z-20"
-                        >
-                          <div class="py-1">
-                            <button
-                              on:click={(e) => startEditing(e, conv)}
-                              class="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
-                            >
-                              Rename
-                            </button>
-                            <button
-                              on:click={(e) => handleExport(e, conv.id, "md")}
-                              class="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
-                            >
-                              Export
-                            </button>
-                            <div class="border-t border-gray-100 dark:border-white/5"></div>
-                            <button
-                              on:click={(e) => handleDelete(e, conv.id)}
-                              class="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:red-900/20"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      {/if}
-                    </div>
-
-                    <div class="flex-1">
-                      <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {conv.title}
-                      </div>
-                      <div class="text-xs text-gray-400 mt-0.5">
-                        {formatDate(conv.updated_at)} · {conv.message_count} msgs
-                      </div>
-                    </div>
-                  </div>
+                     {#if activeActionsId === conv.id}
+                       <div
+                         class="absolute right-0 mt-2 w-48 bg-white dark:bg-black border border-gray-200 dark:border-white/10 rounded-md shadow-lg z-20"
+                       >
+                         <div class="py-1">
+                           <button
+                             on:click={(e) => startEditing(e, conv)}
+                             class="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
+                           >
+                             Rename
+                           </button>
+                           <button
+                             on:click={(e) => handleExport(e, conv.id, "md")}
+                             class="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
+                           >
+                             Export
+                           </button>
+                           <div class="border-t border-gray-100 dark:border-white/5"></div>
+                           <button
+                             on:click={(e) => handleDelete(e, conv.id)}
+                             class="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:red-900/20"
+                           >
+                             Delete
+                           </button>
+                         </div>
+                       </div>
+                     {/if}
+                   </div>
+                 </div>
                {/if}
              </div>
            </li>

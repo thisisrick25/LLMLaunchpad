@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { servicesStore, serverState, isServerRunning, serviceLogs } from './services';
-  import type { HardwareInfo } from '../../shared/types';
+  import type { HardwareInfo, Status } from '../../shared/types';
 
   export let hardware: HardwareInfo | null = null;
-export let error: string | null = null;
+  export let error: string | null = null;
+  export let status: Status | null = null;
 
   let showLogs = false;
   let logsContainer: HTMLDivElement;
@@ -50,8 +51,8 @@ export let error: string | null = null;
   }
 </script>
 
-  <!-- Status Bar -->
-  <div class="bg-white dark:bg-black border-t border-gray-200 dark:border-white/10 text-gray-900 dark:text-white px-4 py-2 text-sm flex items-center justify-between">
+   <!-- Status Bar -->
+   <div class="bg-white dark:bg-black border-t border-gray-200 dark:border-white/10 text-gray-900 dark:text-white px-4 py-2 text-sm flex items-center justify-between border-2 border-blue-500">
     <div class="flex items-center gap-4">
       {#if error}
         <!-- Error status -->

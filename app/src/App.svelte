@@ -18,8 +18,6 @@ import { initTheme, toggleTheme, theme } from './shared/theme';
   let hardware: HardwareInfo | null = null;
   let error: string | null = null;
   let loading = true;
-
-  // UI state
   let showSidebar = true;
   let showControlsModal = false;
   let selectedModel: LocalModel | null = null;
@@ -35,6 +33,8 @@ import { initTheme, toggleTheme, theme } from './shared/theme';
         error = null; // Clear error on successful connection
       } catch (e) {
         error = e instanceof Error ? e.message : 'Failed to connect to backend';
+        status = null;
+        hardware = null;
       } finally {
         loading = false;
       }
@@ -177,10 +177,8 @@ function closeControlsModal() {
     </div>
   {/if}
 
-  <!-- Status Bar -->
-  {#if status && !loading && !error}
-    <footer class="flex-shrink-0">
-      <StatusBar {hardware} />
-    </footer>
-  {/if}
+   <!-- Status Bar -->
+   <footer class="flex-shrink-0">
+     <StatusBar {hardware} {error} {status} />
+   </footer>
 </div>

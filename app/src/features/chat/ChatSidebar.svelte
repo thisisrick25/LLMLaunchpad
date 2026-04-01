@@ -170,7 +170,7 @@
                    autofocus
                  />
                {:else}
-                 <div class="flex items-center">
+                 <div class="flex items-center w-full">
                    <div class="flex-1">
                      <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
                        {conv.title}

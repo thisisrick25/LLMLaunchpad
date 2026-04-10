@@ -85,17 +85,7 @@
     }
   }
 
-  function formatDate(dateStr: string): string {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-    if (days === 0) return "Today";
-    if (days === 1) return "Yesterday";
-    if (days < 7) return `${days} days ago`;
-    return date.toLocaleDateString();
-  }
 </script>
 
 <div class="flex flex-col h-full bg-white dark:bg-black">
@@ -170,15 +160,12 @@
                    autofocus
                  />
                {:else}
-                 <div class="flex items-center w-full">
-                   <div class="flex-1">
-                     <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
-                       {conv.title}
-                     </div>
-                      <div class="text-xs text-gray-400 mt-0.5">
-                        {formatDate(conv.updated_at)}
+                  <div class="flex items-center w-full">
+                    <div class="flex-1">
+                      <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {conv.title}
                       </div>
-                   </div>
+                    </div>
                     <!-- 3-dot menu button -->
 <div class="relative ml-auto">
                       <button

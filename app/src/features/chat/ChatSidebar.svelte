@@ -175,9 +175,9 @@
                      <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
                        {conv.title}
                      </div>
-                     <div class="text-xs text-gray-400 mt-0.5">
-                       {formatDate(conv.updated_at)} · {conv.message_count} msgs
-                     </div>
+                      <div class="text-xs text-gray-400 mt-0.5">
+                        {formatDate(conv.updated_at)}
+                      </div>
                    </div>
                    <!-- 3-dot menu button -->
 <div class="relative ml-auto">

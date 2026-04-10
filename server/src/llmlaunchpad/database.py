@@ -60,8 +60,28 @@ def init_db() -> None:
     """)
     
     cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_conversations_updated 
-        ON conversations(updated_at DESC)
+    CREATE INDEX IF NOT EXISTS idx_conversations_updated
+    ON conversations(updated_at DESC)
+    """)
+
+    # FTS5 triggers to keep search index in sync
+    cursor.execute("""
+    CREATE TRIGGER IF NOT EXISTS messages_ai AFTER INSERT ON messages BEGIN
+        INSERT INTO messages_fts(rowid, content) VALUES (new.rowid, new.content);
+    END
+    """)
+
+    cursor.execute("""
+    CREATE TRIGGER IF NOT EXISTS messages_ad AFTER DELETE ON messages BEGIN
+        INSERT INTO messages_fts(messages_fts, rowid, content) VALUES('delete', old.rowid, old.content);
+    END
+    """)
+
+    cursor.execute("""
+    CREATE TRIGGER IF NOT EXISTS messages_au AFTER UPDATE ON messages BEGIN
+        INSERT INTO messages_fts(messages_fts, rowid, content) VALUES('delete', old.rowid, old.content);
+        INSERT INTO messages_fts(rowid, content) VALUES (new.rowid, new.content);
+    END
     """)
     
     conn.commit()

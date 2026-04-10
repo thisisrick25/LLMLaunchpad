@@ -156,10 +156,10 @@
      {:else}
        <ul class="py-2">
          {#each $conversations as conv (conv.id)}
-            <li class="relative" use:clickOutside>
-             <div
-               class="flex w-full items-center py-3 px-3 {currentConversationId === conv.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''} hover:bg-gray-100 dark:hover:bg-white/5"
-             >
+             <li class="relative" use:clickOutside>
+              <div
+                class="group flex w-full items-center py-3 px-3 {currentConversationId === conv.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''} hover:bg-gray-100 dark:hover:bg-white/5"
+              >
                {#if editingId === conv.id}
                  <input
                    type="text"
@@ -179,24 +179,24 @@
                         {formatDate(conv.updated_at)}
                       </div>
                    </div>
-                   <!-- 3-dot menu button -->
+                    <!-- 3-dot menu button -->
 <div class="relative ml-auto">
-                     <button
-                       on:click|stopPropagation={() => toggleActions(conv.id)}
-                       class="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-md"
-                     >
+                      <button
+                        on:click|stopPropagation={() => toggleActions(conv.id)}
+                        class="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-md opacity-0 group-hover:opacity-100 transition-opacity {activeActionsId === conv.id ? 'opacity-100' : ''}"
+                      >
                        <svg
                          class="w-4 h-4"
                          fill="none"
                          stroke="currentColor"
                          viewBox="0 0 24 24"
                        >
-                         <path
-                           stroke-linecap="round"
-                           stroke-linejoin="round"
-                           stroke-width="2"
-                           d="M12 5v.01M12 12h.01M12 19h.01"
-                         />
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M5 12h.01M12 12h.01M19 12h.01"
+                          />
                        </svg>
                      </button>
 

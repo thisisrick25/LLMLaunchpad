@@ -35,6 +35,21 @@ def get_logs_dir() -> Path:
     return get_app_dir() / "logs"
 
 
+def is_dev_mode() -> bool:
+    """Check if running in development mode."""
+    return os.environ.get("LLMLAUNCHPAD_DEV", "0") == "1"
+
+
+def get_dev_models_dir() -> Path:
+    """Get dev models directory."""
+    return get_app_dir() / "models" / "dev"
+
+
+def get_dev_model_path() -> Path:
+    """Get full path to dev model."""
+    return get_dev_models_dir() / "Phi-3-mini-4k-instruct-q4.gguf"
+
+
 @dataclass
 class Config:
     """Application configuration."""
@@ -62,6 +77,11 @@ class Config:
     # Llama.cpp binary download
     llama_auto_download: bool = True
     llama_binary_source: str = "https://github.com/ggerganov/llama.cpp/releases/download"
+    
+    # Dev mode settings
+    dev_auto_start: bool = False
+    dev_model: str = "Phi-3-mini-4k-instruct-q4.gguf"
+    dev_auto_download: bool = True
     
     # Server
     host: str = "127.0.0.1"

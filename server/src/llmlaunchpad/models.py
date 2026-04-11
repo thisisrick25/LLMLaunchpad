@@ -9,7 +9,7 @@ from dataclasses import dataclass, asdict
 from typing import Optional, List, Dict, Any, Tuple
 from concurrent.futures import ThreadPoolExecutor
 
-from .config import get_config
+from .config import get_config, get_dev_models_dir
 
 
 @dataclass
@@ -110,6 +110,7 @@ def get_model_sources() -> Dict[str, Path]:
     
     sources = {
         "llmlaunchpad": Path(get_config().models_dir),
+        "llmlaunchpad-dev": get_dev_models_dir(),
         "lm_studio": home / ".cache" / "lm-studio" / "models",
         "huggingface": home / ".cache" / "huggingface" / "hub",
         "jan": home / "jan" / "models",

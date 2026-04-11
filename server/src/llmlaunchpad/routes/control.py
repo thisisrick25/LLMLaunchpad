@@ -10,7 +10,7 @@ import json
 from ..llama import get_llama_server, LlamaServerState
 from ..offload import calculate_offload, PerformanceMode
 from ..models import find_model_by_name
-from ..config import get_config, save_config
+from ..config import get_config, save_config, is_dev_mode, get_dev_model_path
 
 router = APIRouter(prefix="/control", tags=["control"])
 
@@ -407,4 +407,57 @@ async def set_mode(request: ModeRequest):
         "requires_restart": requires_restart,
         "can_apply_dynamically": can_apply_dynamically,
         "message": "Mode updated. " + ("Changes will take effect immediately." if can_apply_dynamically else "Restart the server for changes to take effect.")
+    }
+
+
+@router.post("/dev-start")
+async def dev_start():
+    """
+    Auto-start llama-server with dev model.
+    
+    Only available in development mode (LLMLAUNCHPAD_DEV=1).
+    Uses sensible defaults for fast dev iteration.
+    """
+    if not is_dev_mode():
+        raise HTTPException(
+            status_code=403,
+            detail="Dev-start only available in development mode"
+        )
+    
+    server = get_llama_server()
+    
+    # Already running?
+    if server.state == LlamaServerState.RUNNING:
+        return {
+            "status": "already_running",
+            "api_url": server.get_api_url(),
+        }
+    
+    # Get dev model path
+    model_path = get_dev_model_path()
+    if not model_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dev model not found at {model_path}. Run: python scripts/get-dev-model.py"
+        )
+    
+    # Start with dev defaults
+    success = await server.start(
+        model_path=str(model_path),
+        gpu_layers=0,  # CPU only for dev
+        context_size=2048,
+    )
+    
+    if not success:
+        status = server.get_status()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start: {status.error}"
+        )
+    
+    return {
+        "status": "started",
+        "model": model_path.name,
+        "mode": "cpu-only",
+        "api_url": server.get_api_url(),
     }

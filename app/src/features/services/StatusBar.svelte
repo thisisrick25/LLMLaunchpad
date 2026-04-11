@@ -1,9 +1,11 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { servicesStore, serverState, isServerRunning, serviceLogs } from './services';
-  import type { HardwareInfo, Status } from '../../shared/types';
+import { onMount, onDestroy } from 'svelte';
+import { servicesStore, serverState, isServerRunning, serviceLogs } from './services';
+import type { HardwareInfo, Status } from '../../shared/types';
 
-  export let hardware: HardwareInfo | null = null;
+const isDevMode = import.meta.env.DEV;
+
+export let hardware: HardwareInfo | null = null;
   export let error: string | null = null;
   export let status: Status | null = null;
 
@@ -88,9 +90,16 @@
               </span>
             {/if}
           </div>
-        {/if}
-      {/if}
-    </div>
+		{/if}
+	{/if}
+
+	<!-- Dev mode badge -->
+	{#if isDevMode}
+		<span class="ml-2 px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200 rounded">
+			DEV
+		</span>
+	{/if}
+</div>
 
     <!-- Log toggle -->
     <button

@@ -38,37 +38,66 @@ class DownloadProgress:
         self.expected_size = expected_size
         self.downloaded = 0
         self.last_percent = -1
-    
-    def __call__(self, block_num: int, block_size: int, total_size: int):
-        self.downloaded = block_num * block_size
+
+    def update(self, downloaded: int, total_size: int):
+        self.downloaded = downloaded
         size = total_size if total_size > 0 else self.expected_size
-        
+
         if size > 0:
             percent = min(100, int(self.downloaded * 100 / size))
-            
+
             if percent != self.last_percent:
                 self.last_percent = percent
                 downloaded_mb = self.downloaded / (1024 * 1024)
                 size_mb = size / (1024 * 1024)
-                print(f"\r  Downloading: {percent:3d}% ({downloaded_mb:.1f} / {size_mb:.1f} MB)", 
+                print(f"\r Downloading: {percent:3d}% ({downloaded_mb:.1f} / {size_mb:.1f} MB)",
                       end="", flush=True)
+
+    def __call__(self, block_num: int, block_size: int, total_size: int):
+        self.downloaded = block_num * block_size
+        self.update(self.downloaded, total_size)
 
 
 def download_model(destination: Path) -> bool:
     progress = DownloadProgress(EXPECTED_SIZE)
-    
+
     try:
         req = urllib.request.Request(
             MODEL_URL,
             headers={"User-Agent": "LLMLaunchpad/1.0"}
         )
-        
-        urllib.request.urlretrieve(req, destination, reporthook=progress)
+
+        with urllib.request.urlopen(req) as response:
+            total_size = int(response.headers.get('Content-Length', EXPECTED_SIZE))
+            downloaded = 0
+            block_size = 8192
+
+            with open(destination, 'wb') as f:
+                while True:
+                    block = response.read(block_size)
+                    if not block:
+                        break
+                    f.write(block)
+                    downloaded += len(block)
+                    progress.update(downloaded, total_size)
+
         print()
         return True
-        
+
     except urllib.error.HTTPError as e:
-        print(f"\n  Error: HTTP {e.code} - {e.reason}")
+        print(f"\n Error: HTTP {e.code} - {e.reason}")
+        return False
+    except urllib.error.URLError as e:
+        print(f"\n Error: Network error - {e.reason}")
+        return False
+    except Exception as e:
+        print(f"\n Error: {e}")
+        return False
+    except urllib.error.URLError as e:
+        print(f"\n Error: Network error - {e.reason}")
+        return False
+    except Exception as e:
+        print(f"\n Error: {e}")
         return False
     except urllib.error.URLError as e:
         print(f"\n  Error: Network error - {e.reason}")

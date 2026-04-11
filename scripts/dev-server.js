@@ -45,8 +45,3 @@ child.on('close', (code) => {
   // Propagate the exit code to the npm process so that concurrently can detect failures.
   process.exit(code);
 });
-
-child.on('close', (code) => {
-  // Propagate the exit code to the npm process so that concurrently can detect failures.
-  process.exit(code);
-});

@@ -499,28 +499,28 @@ class LlamaServer:
                     self._read_output(self._process.stdout)
                 )
             
-        # Wait a moment to see if it starts successfully
-        await asyncio.sleep(1.0)
+            # Wait a moment to see if it starts successfully
+            await asyncio.sleep(1.0)
 
-        if self._process.returncode is not None:
-            stdout_data = await self._process.stdout.read() if self._process.stdout else b""
-            stderr_data = b""
-            
-            if hasattr(self._process, 'stderr') and self._process.stderr:
-                try:
-                    stderr_data = await self._process.stderr.read()
-                except:
-                    pass
-            
-            error_output = (stdout_data + stderr_data).decode('utf-8', errors='replace').strip()
-            
-            if error_output:
-                self._error = f"llama-server exited with code {self._process.returncode}: {error_output[:500]}"
-            else:
-                self._error = f"llama-server exited with code {self._process.returncode}"
-            
-            self._state = LlamaServerState.ERROR
-            return False
+            if self._process.returncode is not None:
+                stdout_data = await self._process.stdout.read() if self._process.stdout else b""
+                stderr_data = b""
+                
+                if hasattr(self._process, 'stderr') and self._process.stderr:
+                    try:
+                        stderr_data = await self._process.stderr.read()
+                    except:
+                        pass
+                
+                error_output = (stdout_data + stderr_data).decode('utf-8', errors='replace').strip()
+                
+                if error_output:
+                    self._error = f"llama-server exited with code {self._process.returncode}: {error_output[:500]}"
+                else:
+                    self._error = f"llama-server exited with code {self._process.returncode}"
+                
+                self._state = LlamaServerState.ERROR
+                return False
             
             # Give it more time to fully initialize
             for _ in range(30):  # Up to 30 seconds

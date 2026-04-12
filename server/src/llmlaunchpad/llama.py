@@ -60,7 +60,7 @@ class LlamaServerConfig:
             args.extend(["--threads", str(self.threads)])
 
         if self.flash_attention:
-            args.append("--flash-attn")
+            args.extend(["--flash-attn", "on"])
 
         if self.mlock:
             args.append("--mlock")

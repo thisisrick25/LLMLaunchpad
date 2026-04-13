@@ -104,8 +104,6 @@ def find_llama_server() -> Optional[str]:
     1. Config-specified path
     2. System PATH
     3. Common installation locations
-    4. LLMLaunchpad default bin directory
-    5. Download if not found and auto-download is enabled
     """
     config = get_config()
 
@@ -154,133 +152,7 @@ def find_llama_server() -> Optional[str]:
         if path.exists():
             return str(path)
 
-    # 4. Check LLMLaunchpad default bin directory (~/.llmlaunchpad/bin)
-    default_bin = Path.home() / ".llmlaunchpad" / "bin"
-    candidate = default_bin / ("llama-server.exe" if platform.system() == "Windows" else "llama-server")
-    if candidate.exists():
-        return str(candidate)
-
-    # 5. Download if not found and auto-download is enabled
-    if config.llama_auto_download:
-        logger.info("llama-server not found, attempting to download...")
-        downloaded_path = download_llama_server()
-        if downloaded_path:
-            return downloaded_path
-
     return None
-
-
-def download_llama_server() -> Optional[str]:
-    """
-    Download llama-server binary from official releases.
-
-    Returns the path to the downloaded binary or None if failed.
-    """
-    import urllib.request
-    import tarfile
-    import zipfile
-    import hashlib
-    import stat
-    import time
-
-    config = get_config()
-    system = platform.system()
-    machine = platform.machine().lower()
-
-    # Initialize variables to avoid unbound errors
-    archive_path = None
-
-    # Determine the appropriate binary name and URL
-    if system == "Windows":
-        logger.warning("Automatic download for Windows is not implemented")
-        return None
-    elif system == "Darwin":
-        if "arm" in machine or "aarch64" in machine:
-            binary_name = "llama-server"
-            asset_name = "llama-server-b5122-macos-arm64.zip"
-        else:
-            binary_name = "llama-server"
-            asset_name = "llama-server-b5122-macos-x64.zip"
-    else:  # Linux
-        if "arm" in machine or "aarch64" in machine:
-            binary_name = "llama-server"
-            asset_name = "llama-server-b5122-linux-arm64.tar.gz"
-        else:
-            binary_name = "llama-server"
-            asset_name = "llama-server-b5122-linux-x64.tar.gz"
-
-    version = "b5122"
-    base_url = config.llama_binary_source.rstrip("/")
-    url = f"{base_url}/{version}/{asset_name}"
-
-    download_dir = Path.home() / ".llmlaunchpad" / "bin"
-    download_dir.mkdir(parents=True, exist_ok=True)
-
-    binary_path = download_dir / binary_name
-    if system == "Windows":
-        binary_path = binary_path.with_suffix(".exe")
-
-    try:
-        logger.info(f"Downloading llama-server from {url}")
-
-        def reporthook(block_num, block_size, total_size):
-            read_so_far = block_num * block_size
-            if total_size > 0:
-                percent = read_so_far * 100 / total_size
-                s = f"\rDownloading: {percent:.1f}% ({read_so_far} / {total_size} bytes)"
-                sys.stderr.write(s)
-                if read_so_far >= total_size:
-                    sys.stderr.write("\n")
-
-        archive_path = download_dir / asset_name
-        urllib.request.urlretrieve(url, archive_path, reporthook)
-
-        # Extract based on file type
-        if asset_name.endswith(".zip"):
-            with zipfile.ZipFile(archive_path, 'r') as zip_ref:
-                zip_ref.extractall(download_dir)
-                for extracted_file in zip_ref.namelist():
-                    if binary_name in extracted_file and not extracted_file.endswith('/'):
-                        extracted_path = download_dir / extracted_file
-                        if extracted_path.exists():
-                            shutil.move(str(extracted_path), str(binary_path))
-                            break
-        elif asset_name.endswith(".tar.gz"):
-            with tarfile.open(archive_path, "r:gz") as tar_ref:
-                tar_ref.extractall(download_dir)
-                for member in tar_ref.getmembers():
-                    if binary_name in member.name and not member.isdir():
-                        extracted_path = download_dir / member.name
-                        if extracted_path.exists():
-                            shutil.move(str(extracted_path), str(binary_path))
-                            break
-
-        if archive_path and archive_path.exists():
-            archive_path.unlink()
-
-        if system != "Windows":
-            try:
-                current_permissions = binary_path.stat().st_mode
-                binary_path.chmod(current_permissions | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-            except Exception as e:
-                logger.warning(f"Could not set executable permissions: {e}")
-
-        logger.info(f"Successfully downloaded llama-server to {binary_path}")
-        return str(binary_path)
-
-    except Exception as e:
-        logger.error(f"Failed to download llama-server: {e}")
-        if archive_path and archive_path.exists():
-            try:
-                archive_path.unlink()
-            except Exception:
-                pass
-        if binary_path.exists():
-            try:
-                binary_path.unlink()
-            except Exception:
-                pass
-        return None
 
 
 class LlamaServer:
@@ -381,6 +253,12 @@ class LlamaServer:
 
         Returns True if started successfully.
         """
+        # Reset from ERROR state to allow restart
+        if self._state == LlamaServerState.ERROR:
+            self._state = LlamaServerState.STOPPED
+            self._error = None
+            self._process = None
+
         if self._state in (LlamaServerState.RUNNING, LlamaServerState.STARTING):
             self._error = "llama-server is already running or starting"
             logger.warning(self._error)

@@ -232,7 +232,7 @@ if ($All) {
     } else {
         Write-Host "llama.cpp - Local inference engine" -ForegroundColor White
         Write-Host "  Required to run models locally on your machine" -ForegroundColor Gray
-        $response = Read-Host "  Install llama.cpp? [Y/n]"
+        $response = Read-Host "  Show installation instructions? [Y/n]"
         if ($response -eq "" -or $response -match "^[Yy]") {
             $InstallLlamaCpp = $true
         }
@@ -311,18 +311,28 @@ Write-Host ""
 #endregion
 
 #region Install llama.cpp
-function Install-LlamaCpp {
-    Write-Host "Installing llama.cpp..." -ForegroundColor Cyan
-    
-    # Detect architecture
-    $arch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
-    
-    # Check for CUDA
-    $nvcc = Get-Command nvcc -ErrorAction SilentlyContinue
-    $hasCuda = $null -ne $nvcc
-    if ($hasCuda) {
-        Write-Host "  CUDA detected, preferring CUDA build" -ForegroundColor Gray
-    }
+function Show-LlamaCppInstructions {
+    Write-Host "llama.cpp Installation Instructions" -ForegroundColor Cyan
+    Write-Host "====================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "llama.cpp is required to run models locally." -ForegroundColor White
+    Write-Host ""
+    Write-Host "Install using one of these methods:" -ForegroundColor White
+    Write-Host ""
+    Write-Host "Option 1: Winget (Recommended)" -ForegroundColor Green
+    Write-Host "  winget install llama.cpp" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "Option 2: Download from GitHub" -ForegroundColor Green
+    Write-Host "  https://github.com/ggml-org/llama.cpp/releases" -ForegroundColor Gray
+    Write-Host "  Download the Windows binary and add to PATH" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "Option 3: Build from source" -ForegroundColor Green
+    Write-Host "  git clone https://github.com/ggml-org/llama.cpp" -ForegroundColor Gray
+    Write-Host "  cd llama.cpp && cmake -B build && cmake --build build --config Release" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "After installation, ensure 'llama-server' is in your PATH." -ForegroundColor Yellow
+    Write-Host ""
+}
     
     # Get latest release from GitHub
     $releaseUrl = "https://api.github.com/repos/ggerganov/llama.cpp/releases/latest"

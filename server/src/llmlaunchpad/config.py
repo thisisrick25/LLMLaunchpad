@@ -73,11 +73,7 @@ class Config:
     # LiteLLM (cloud routing)
     litellm_enabled: bool = False
     litellm_api_keys: dict = field(default_factory=dict)
-    
-    # Llama.cpp binary download
-    llama_auto_download: bool = True
-    llama_binary_source: str = "https://github.com/ggerganov/llama.cpp/releases/download"
-    
+
     # Dev mode settings
     dev_auto_start: bool = False
     dev_model: str = "Phi-3-mini-4k-instruct-q4.gguf"

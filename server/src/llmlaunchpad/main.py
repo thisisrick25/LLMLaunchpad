@@ -44,7 +44,7 @@ def run():
         "llmlaunchpad.main:app",
         host=config.host,
         port=config.port,
-        reload=True,
+        reload=False,  # Disable reload to prevent state issues with llama-server
     )
 
 

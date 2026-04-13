@@ -68,75 +68,108 @@ async def get_status():
 async def start_server(request: StartRequest):
     """
     Start the llama-server with the specified model.
-    
+
     If gpu_layers is not specified, it will be calculated based on the mode:
     - auto: Calculate based on available VRAM
     - gpu-heavy: Maximize GPU usage
     - cpu-only: No GPU layers
     """
-    server = get_llama_server()
+    import logging
+    import traceback
+    logger = logging.getLogger(__name__)
     
-    # Check if already running
-    if server.state == LlamaServerState.RUNNING:
-        raise HTTPException(
-            status_code=409,
-            detail="Server is already running. Stop it first."
-        )
-    
-    # Find the model
-    model = find_model_by_name(request.model)
-    if not model:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Model not found: {request.model}"
-        )
-    
-    # Validate context_size
-    if request.context_size < 128 or request.context_size > 131072:
-        raise HTTPException(
-            status_code=400,
-            detail="Context size must be between 128 and 131072"
-        )
-    
-    # Validate port
-    if request.port < 1 or request.port > 65535:
-        raise HTTPException(
-            status_code=400,
-            detail="Port must be between 1 and 65535"
-        )
-    
-    # Calculate GPU layers if not specified
-    if request.gpu_layers is not None:
-        gpu_layers = request.gpu_layers
-    else:
-        recommendation = calculate_offload(
-            model_path=model.path,
-            context_size=request.context_size,
-            mode=request.mode,
-        )
-        gpu_layers = recommendation.gpu_layers
-    
-    # Start the server
-    success = await server.start(
-        model_path=model.path,
-        gpu_layers=gpu_layers,
-        context_size=request.context_size,
-        port=request.port,
-    )
-    
-    if not success:
-        status = server.get_status()
+    try:
+        server = get_llama_server()
+        logger.info(f"Start request received: model={request.model}, mode={request.mode}, gpu_layers={request.gpu_layers}")
+        logger.info(f"Current server state: {server.state}, is_running={server.is_running}")
+
+        # Check if already running
+        if server.state == LlamaServerState.RUNNING:
+            raise HTTPException(
+                status_code=409,
+                detail="Server is already running. Stop it first."
+            )
+
+        # Find the model
+        logger.info(f"Looking for model: {request.model}")
+        model = find_model_by_name(request.model)
+        if not model:
+            logger.error(f"Model not found: {request.model}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Model not found: {request.model}"
+            )
+        logger.info(f"Found model: {model.name} at {model.path}")
+
+        # Validate context_size
+        if request.context_size < 128 or request.context_size > 131072:
+            raise HTTPException(
+                status_code=400,
+                detail="Context size must be between 128 and 131072"
+            )
+
+        # Validate port
+        if request.port < 1 or request.port > 65535:
+            raise HTTPException(
+                status_code=400,
+                detail="Port must be between 1 and 65535"
+            )
+
+        # Calculate GPU layers if not specified
+        if request.gpu_layers is not None:
+            gpu_layers = request.gpu_layers
+            logger.info(f"Using specified gpu_layers: {gpu_layers}")
+        else:
+            recommendation = calculate_offload(
+                model_path=model.path,
+                context_size=request.context_size,
+                mode=request.mode,
+            )
+            gpu_layers = recommendation.gpu_layers
+            logger.info(f"Calculated gpu_layers: {gpu_layers}")
+
+        # Start the server
+        try:
+            logger.info(f"Starting server with model={model.path}, gpu_layers={gpu_layers}, context_size={request.context_size}, port={request.port}")
+            success = await server.start(
+                model_path=model.path,
+                gpu_layers=gpu_layers,
+                context_size=request.context_size,
+                port=request.port,
+            )
+            logger.info(f"Server start result: {success}, state: {server.state}, error: {server.get_status().error}")
+        except Exception as e:
+            logger.error(f"Exception during server start: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Exception during server start: {str(e)}"
+            )
+
+        if not success:
+            status = server.get_status()
+            logger.error(f"Server start failed: state={status.state}, error={status.error}")
+            # Ensure error message is never empty
+            error_msg = status.error or "Unknown error (no details captured)"
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to start server: {error_msg}"
+            )
+
+        result = {
+            "status": "started",
+            "model": model.name,
+            "gpu_layers": gpu_layers,
+            "api_url": server.get_api_url(),
+        }
+        logger.info(f"Returning success response: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"CRITICAL: Unhandled exception in start_server: {e}")
+        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to start server: {status.error}"
+            detail=f"Internal server error: {str(e)}"
         )
-    
-    return {
-        "status": "started",
-        "model": model.name,
-        "gpu_layers": gpu_layers,
-        "api_url": server.get_api_url(),
-    }
 
 
 @router.post("/stop")

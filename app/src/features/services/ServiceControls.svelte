@@ -29,19 +29,19 @@
     servicesStore.stopVramMonitoring();
   });
 
-  async function handleStart() {
+async function handleStart() {
     if (!selectedModel) return;
-    const startRequest = {
+    const startRequest: import('../../shared/types').StartRequest = {
       model: selectedModel.name,
       mode: $currentMode,
       context_size: contextSize,
     };
-    
+
     // Add manual GPU layers override if set
     if ($manualGpuLayers !== null) {
       startRequest.gpu_layers = $manualGpuLayers;
     }
-    
+
     await servicesStore.start(startRequest);
   }
 

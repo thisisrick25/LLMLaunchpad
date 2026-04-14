@@ -244,19 +244,21 @@ elif [ "$NO_PROMPT" = false ]; then
     echo -e "${GRAY}(Press Enter for default, or type y/n)${NC}"
     echo ""
     
-    # llama.cpp
-    if [ -n "$LLAMA_INSTALLED" ]; then
-        echo -e "${WHITE}llama.cpp - Local inference engine${NC}"
-        echo -e "  ${GREEN}Already installed at: $LLAMA_PATH${NC}"
-    else
-        echo -e "${WHITE}llama.cpp - Local inference engine${NC}"
-        echo -e "  ${GRAY}Required to run models locally on your machine${NC}"
-        read -p "  Install llama.cpp? [Y/n] " response
-        if [[ "$response" == "" || "$response" =~ ^[Yy] ]]; then
-            INSTALL_LLAMA=true
-        fi
+# llama.cpp
+if [ -n "$LLAMA_INSTALLED" ]; then
+    echo -e "${WHITE}llama.cpp - Local inference engine${NC}"
+    echo -e " ${GREEN}Already installed at: $LLAMA_PATH${NC}"
+else
+    echo -e "${WHITE}llama.cpp - Local inference engine${NC}"
+    echo -e " ${GRAY}Required to run models locally on your machine${NC}"
+    echo -e " ${GRAY}Install via: brew install llama.cpp (macOS/Linux)${NC}"
+    echo -e " ${GRAY}Or download from: https://github.com/ggml-org/llama.cpp/releases${NC}"
+    read -p " Show installation instructions? [Y/n] " response
+    if [[ "$response" == "" || "$response" =~ ^[Yy] ]]; then
+        INSTALL_LLAMA=true
     fi
-    echo ""
+fi
+echo ""
     
     # Hugging Face Hub
     if [ -n "$HF_INSTALLED" ]; then
@@ -355,111 +357,54 @@ echo ""
 #endregion
 
 #region Install llama.cpp
-install_llama_cpp() {
-    echo -e "${CYAN}Installing llama.cpp...${NC}"
-    
+show_llama_instructions() {
+    echo -e "${CYAN}llama.cpp Installation Instructions${NC}"
+    echo ""
+
     local os=$(detect_os)
-    local arch=$(detect_arch)
-    
-    echo -e "  ${GRAY}Detected: $os ($arch)${NC}"
-    
-    # Check for CUDA on Linux
-    local has_cuda=false
-    if command -v nvcc &> /dev/null; then
-        has_cuda=true
-        echo -e "  ${GRAY}CUDA detected, preferring CUDA build${NC}"
-    fi
-    
-    # Get latest release from GitHub
-    local release_url="https://api.github.com/repos/ggerganov/llama.cpp/releases/latest"
-    local release_json
-    
-    if command -v curl &> /dev/null; then
-        release_json=$(curl -s -H "User-Agent: LLMLaunchpad" "$release_url")
-    elif command -v wget &> /dev/null; then
-        release_json=$(wget -q -O - --header="User-Agent: LLMLaunchpad" "$release_url")
-    else
-        echo -e "  ${RED}Error: curl or wget required${NC}"
-        return 1
-    fi
-    
-    local version=$(echo "$release_json" | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4)
-    echo -e "  ${GRAY}Latest version: $version${NC}"
-    
-    # Find appropriate asset based on OS
-    local asset_pattern=""
+
+    echo -e "${WHITE}llama.cpp is required to run models locally.${NC}"
+    echo ""
+    echo -e "${CYAN}Installation options:${NC}"
+    echo ""
+
     case "$os" in
         macos)
-            if [ "$arch" = "arm64" ]; then
-                asset_pattern="macos-arm64"
-            else
-                asset_pattern="macos-x64"
-            fi
+            echo -e "${GREEN}Option 1: Homebrew (Recommended)${NC}"
+            echo -e "  ${GRAY}brew install llama.cpp${NC}"
+            echo ""
+            echo -e "${GREEN}Option 2: MacPorts${NC}"
+            echo -e "  ${GRAY}sudo port install llama.cpp${NC}"
+            echo ""
+            echo -e "${GREEN}Option 3: Nix${NC}"
+            echo -e "  ${GRAY}nix profile install nixpkgs#llama-cpp${NC}"
             ;;
         linux)
-            if [ "$has_cuda" = true ]; then
-                asset_pattern="linux.*cuda.*$arch"
-            else
-                asset_pattern="linux.*$arch"
-            fi
+            echo -e "${GREEN}Option 1: Homebrew (Recommended)${NC}"
+            echo -e "  ${GRAY}brew install llama.cpp${NC}"
+            echo ""
+            echo -e "${GREEN}Option 2: Nix${NC}"
+            echo -e "  ${GRAY}nix profile install nixpkgs#llama-cpp${NC}"
+            ;;
+        *)
+            echo -e "${GREEN}Homebrew (macOS/Linux)${NC}"
+            echo -e "  ${GRAY}brew install llama.cpp${NC}"
             ;;
     esac
-    
-    # Extract download URL
-    local download_url=$(echo "$release_json" | grep -o '"browser_download_url": *"[^"]*'"$asset_pattern"'[^"]*\.zip"' | head -1 | cut -d'"' -f4)
-    
-    if [ -z "$download_url" ]; then
-        # Fallback: try without CUDA
-        download_url=$(echo "$release_json" | grep -o '"browser_download_url": *"[^"]*'"$os"'[^"]*\.zip"' | grep -v cuda | head -1 | cut -d'"' -f4)
-    fi
-    
-    if [ -n "$download_url" ]; then
-        local zip_path="/tmp/llama-cpp.zip"
-        local extract_path="/tmp/llama-cpp-extract"
-        
-        local asset_name=$(basename "$download_url")
-        echo -e "  ${GRAY}Downloading: $asset_name${NC}"
-        
-        if command -v curl &> /dev/null; then
-            curl -L -o "$zip_path" "$download_url"
-        else
-            wget -O "$zip_path" "$download_url"
-        fi
-        
-        echo -e "  ${GRAY}Extracting...${NC}"
-        rm -rf "$extract_path"
-        unzip -q "$zip_path" -d "$extract_path"
-        
-        # Find and copy llama-server
-        local server_bin=$(find "$extract_path" -name "llama-server" -type f | head -1)
-        if [ -n "$server_bin" ]; then
-            cp "$server_bin" "$BIN_DIR/llama-server"
-            chmod +x "$BIN_DIR/llama-server"
-            echo -e "  ${GREEN}Installed: llama-server${NC}"
-            
-            # Copy any .so/.dylib files
-            local lib_dir=$(dirname "$server_bin")
-            find "$lib_dir" -name "*.so*" -o -name "*.dylib" 2>/dev/null | while read lib; do
-                cp "$lib" "$BIN_DIR/"
-                echo -e "  ${GRAY}Copied: $(basename "$lib")${NC}"
-            done
-        else
-            echo -e "  ${YELLOW}Warning: llama-server not found in release${NC}"
-        fi
-        
-        # Cleanup
-        rm -f "$zip_path"
-        rm -rf "$extract_path"
-    else
-        echo -e "  ${RED}Error: No suitable release found for $os ($arch)${NC}"
-        echo -e "  ${YELLOW}Download manually from: https://github.com/ggerganov/llama.cpp/releases${NC}"
-    fi
-    
+
     echo ""
+    echo -e "${GREEN}Option 4: Manual Download${NC}"
+    echo -e "  ${GRAY}Download from: https://github.com/ggml-org/llama.cpp/releases${NC}"
+    echo -e "  ${GRAY}Extract and add llama-server to your PATH${NC}"
+    echo ""
+    echo -e "${YELLOW}Note: After installation, restart LLMLaunchpad to detect llama.cpp${NC}"
+    echo ""
+
+    read -p "Press Enter to continue..."
 }
 
 if [ "$INSTALL_LLAMA" = true ]; then
-    install_llama_cpp
+    show_llama_instructions
 fi
 #endregion
 
@@ -570,10 +515,11 @@ echo ""
 echo "Open in browser: http://localhost:5173"
 echo ""
 
-# Add bin directory to PATH hint
-if [ -f "$BIN_DIR/llama-server" ]; then
-    echo -e "${YELLOW}Tip: Add llama.cpp to your PATH:${NC}"
-    echo -e "  ${GRAY}export PATH=\"\$PATH:$BIN_DIR\"${NC}"
+# Add llama.cpp installation reminder
+if [ -z "$LLAMA_INSTALLED" ]; then
+    echo -e "${YELLOW}Note: llama.cpp not detected.${NC}"
+    echo -e "  ${GRAY}Install via: brew install llama.cpp (macOS/Linux)${NC}"
+    echo -e "  ${GRAY}Or download from: https://github.com/ggml-org/llama.cpp/releases${NC}"
     echo ""
 fi
 #endregion

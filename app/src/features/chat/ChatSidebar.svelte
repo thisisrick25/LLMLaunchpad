@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { chatStore, conversations } from "./chat";
-  import type { ConversationSummary } from "../../shared/types";
+  import { chatStore, conversations, searchResults } from "./chat";
+  import type { ConversationSummary, SearchResult } from "../../shared/types";
 
   export let currentConversationId: string | null = null;
 
@@ -9,6 +9,51 @@
   let editingId: string | null = null;
   let editingTitle = "";
   let activeActionsId: string | null = null;
+
+  let searchDebounce: ReturnType<typeof setTimeout> | undefined;
+
+  // Focus a node when it mounts (a11y-friendly replacement for the autofocus attribute).
+  function focusOnMount(node: HTMLElement) {
+    node.focus();
+  }
+
+  // Debounced search: query the backend when the user types, clear when empty.
+  function handleSearchInput() {
+    clearTimeout(searchDebounce);
+    const query = searchQuery.trim();
+    if (!query) {
+      searchResults.set([]);
+      return;
+    }
+    searchDebounce = setTimeout(() => {
+      chatStore.search(query);
+    }, 300);
+  }
+
+  // Map search results (SearchResult[]) to the summary shape the list renders,
+  // deduping by conversation (FTS can return multiple message hits per conversation).
+  // When there is an active search query, show matches; otherwise show all conversations.
+  $: displayConversations = searchQuery.trim()
+    ? dedupeSearchResults($searchResults)
+    : $conversations;
+
+  function dedupeSearchResults(results: SearchResult[]): ConversationSummary[] {
+    const seen = new Set<string>();
+    const out: ConversationSummary[] = [];
+    for (const r of results) {
+      if (seen.has(r.conversation_id)) continue;
+      seen.add(r.conversation_id);
+      out.push({
+        id: r.conversation_id,
+        title: r.conversation_title,
+        model: "",
+        created_at: r.created_at ?? "",
+        updated_at: r.created_at ?? "",
+        message_count: 0,
+      });
+    }
+    return out;
+  }
 
   function toggleActions(id: string) {
     if (activeActionsId === id) {
@@ -118,6 +163,7 @@
       <input
         type="text"
         bind:value={searchQuery}
+        on:input={handleSearchInput}
         placeholder="Search conversations..."
         class="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-black text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
       />
@@ -139,13 +185,13 @@
 
    <!-- Conversations list -->
    <div class="flex-1 overflow-y-auto">
-     {#if $conversations.length === 0}
+     {#if displayConversations.length === 0}
        <div class="p-4 text-center text-gray-400 text-sm">
          {searchQuery ? "No matching conversations" : "No conversations yet"}
        </div>
      {:else}
        <ul class="py-2">
-         {#each $conversations as conv (conv.id)}
+         {#each displayConversations as conv (conv.id)}
              <li class="relative" use:clickOutside>
               <div
                 class="group flex w-full items-center py-3 px-3 {currentConversationId === conv.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''} hover:bg-gray-100 dark:hover:bg-white/5"
@@ -156,9 +202,9 @@
                    bind:value={editingTitle}
                    on:blur={saveTitle}
                    on:keydown={handleEditKeydown}
-                   class="w-full px-2 py-1 text-sm rounded border border-blue-500 bg-white dark:bg-black text-gray-900 dark:text-white focus:outline-none"
-                   autofocus
-                 />
+                    class="w-full px-2 py-1 text-sm rounded border border-blue-500 bg-white dark:bg-black text-gray-900 dark:text-white focus:outline-none"
+                    use:focusOnMount
+                  />
                {:else}
                   <div class="flex items-center w-full">
                     <div class="flex-1">
@@ -207,7 +253,7 @@
                            <div class="border-t border-gray-100 dark:border-white/5"></div>
                            <button
                              on:click={(e) => handleDelete(e, conv.id)}
-                             class="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:red-900/20"
+                             class="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                            >
                              Delete
                            </button>

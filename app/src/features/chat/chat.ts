@@ -4,7 +4,7 @@
 
 import { writable, derived, get } from 'svelte/store';
 import { api } from '../../shared/api';
-import type { ChatMessage, ConversationSummary, ConversationDetail, StreamChunk } from '../../shared/types';
+import type { ChatMessage, ConversationSummary, ConversationDetail, StreamChunk, SearchResult } from '../../shared/types';
 
 // Types
 interface ChatState {
@@ -15,46 +15,26 @@ interface ChatState {
   isStreaming: boolean;
   error: string | null;
   streamingContent: string;
+  lastResponseAborted: boolean;
 }
 
-  // Initial state
-  const initialState: ChatState = {
-    conversations: [
-      {
-        id: 'conv-1',
-        title: 'Getting started with local AI',
-        model: 'llama-3.1-8b-instruct',
-        created_at: '2026-03-29T10:30:00Z',
-        updated_at: '2026-03-29T10:35:00Z',
-        message_count: 4
-      },
-      {
-        id: 'conv-2',
-        title: 'Python programming help',
-        model: 'mistral-7b-instruct',
-        created_at: '2026-03-28T14:20:00Z',
-        updated_at: '2026-03-28T16:45:00Z',
-        message_count: 12
-      },
-      {
-        id: 'conv-3',
-        title: 'Travel planning for Japan',
-        model: 'phi-3-mini',
-        created_at: '2026-03-27T09:15:00Z',
-        updated_at: '2026-03-27T11:20:00Z',
-        message_count: 8
-      }
-    ],
-    currentConversationId: null,
-    messages: [],
-    isLoading: false,
-    isStreaming: false,
-    error: null,
-    streamingContent: '',
-  };
+// Initial state
+const initialState: ChatState = {
+  conversations: [],
+  currentConversationId: null,
+  messages: [],
+  isLoading: false,
+  isStreaming: false,
+  error: null,
+  streamingContent: '',
+  lastResponseAborted: false,
+};
 
-  // Search results state
-  export const searchResults = writable<SearchResult[]>([]);
+// Search results state
+export const searchResults = writable<SearchResult[]>([]);
+
+// Tracks the in-flight streaming request so it can be aborted client-side.
+let abortController: AbortController | null = null;
 
 // Create the store
 function createChatStore() {
@@ -65,14 +45,6 @@ function createChatStore() {
 
     // Load conversations list
     async loadConversations() {
-      // Only load from API if we don't already have conversations (for development mock data)
-      const state = get({ subscribe });
-      if (state.conversations.length > 0) {
-        // Keep existing conversations (mock data for development)
-        update((s) => ({ ...s, isLoading: false }));
-        return;
-      }
-      
       update((s) => ({ ...s, isLoading: true, error: null }));
       try {
         const conversations = await api.getConversations();
@@ -137,11 +109,14 @@ function createChatStore() {
         // Stream the response
         let fullContent = '';
         let conversationId = state.currentConversationId;
+        let wasAborted = false;
+
+        abortController = new AbortController();
 
         for await (const chunk of api.streamChat({
           messages,
           conversation_id: conversationId || undefined,
-        })) {
+        }, abortController.signal)) {
           if (chunk.error) {
             throw new Error(chunk.error);
           }
@@ -157,17 +132,20 @@ function createChatStore() {
           }
 
           if (chunk.done) {
+            wasAborted = chunk.aborted ?? false;
             break;
           }
         }
 
-        // Add assistant message
+        // Add assistant message. When aborted, the backend persisted whatever
+        // partial content streamed before the stop, so we keep it here too.
         const assistantMessage: ChatMessage = { role: 'assistant', content: fullContent };
         update((s) => ({
           ...s,
           messages: [...s.messages, assistantMessage],
           isStreaming: false,
           streamingContent: '',
+          lastResponseAborted: wasAborted,
         }));
 
         // Refresh conversations list
@@ -179,6 +157,18 @@ function createChatStore() {
           streamingContent: '',
           error: e instanceof Error ? e.message : 'Failed to send message',
         }));
+      } finally {
+        abortController = null;
+      }
+    },
+
+    // Stop an in-flight generation on both the server and the client.
+    async abort() {
+      abortController?.abort();
+      try {
+        await api.abortChat();
+      } catch {
+        // Server abort is best-effort; the client stream is already stopping.
       }
     },
 

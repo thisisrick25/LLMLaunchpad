@@ -27,27 +27,27 @@
 | `GET` | `/models/sources` | List available model sources with status |
 | `POST` | `/models/scan` | Force rescan all sources |
 | `GET` | `/models/recommended` | Curated download list from HF |
-| `GET` | `/models/search?q=...` | Search HF for GGUF models |
-| `POST` | `/models/resolve` | Parse HF URL/ID, list available GGUF files |
+| `POST` | `/models/hf/search` | Search HF for GGUF models |
+| `POST` | `/models/hf/parse` | Parse HF URL/ID |
+| `POST` | `/models/hf/files` | List available GGUF files for a repo |
 | `POST` | `/models/download` | Start downloading a model from HF |
-| `GET` | `/models/download/status` | Check download progress |
-| `POST` | `/models/download/cancel` | Cancel in-progress download |
-| `DELETE` | `/models/{filename}` | Delete a local model (our folder only) |
+| `GET` | `/models/downloads` | Check download progress |
+| `GET` | `/models/{model_name}` | Get details for a specific model |
 
 ### Service Control
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/services/start` | Start llama.cpp (+ optional LiteLLM) |
-| `POST` | `/services/stop` | Stop running services |
-| `POST` | `/services/restart` | Restart services |
+| `POST` | `/control/start` | Start llama.cpp (+ optional LiteLLM) |
+| `POST` | `/control/stop` | Stop running services |
+| `POST` | `/control/restart` | Restart services |
 
 ### Chat
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/chat` | Send message, returns SSE stream |
-| `POST` | `/chat/cancel` | Cancel current generation |
+| `POST` | `/chat/completions` | Send message, returns SSE stream |
+| `POST` | `/chat/abort` | Cancel current generation |
 
 ### Conversations (Chat History)
 
@@ -59,8 +59,8 @@
 | `DELETE` | `/conversations/{id}` | Delete conversation |
 | `PATCH` | `/conversations/{id}` | Update title |
 | `GET` | `/conversations/search?q=...` | Full-text search messages |
-| `GET` | `/conversations/{id}/export?format=json` | Export as JSON |
-| `GET` | `/conversations/{id}/export?format=md` | Export as Markdown |
+| `GET` | `/conversations/{id}/export/json` | Export as JSON |
+| `GET` | `/conversations/{id}/export/markdown` | Export as Markdown |
 
 ### Logs
 
@@ -215,8 +215,8 @@ Ollama stores models as blobs, not raw GGUF files. We parse manifests to find th
 [User browses models] (optional)
     ├── GET /models → See all local models
     ├── GET /models/recommended → Show curated list
-    ├── GET /models/search?q=llama → Search HF
-    ├── POST /models/resolve → Parse HF URL, list files
+    ├── POST /models/hf/search → Search HF
+    ├── POST /models/hf/parse → Parse HF URL, list files
     └── POST /models/download → Download with progress
     │
     ▼
@@ -226,7 +226,7 @@ Ollama stores models as blobs, not raw GGUF files. We parse manifests to find th
 [User clicks Start]
     │
     ▼
-[POST /services/start]
+[POST /control/start]
     ├── Calculate GPU layers based on mode + hardware + model size
     ├── Spawn: llama-server --model X.gguf --n-gpu-layers N --ctx-size 4096
     ├── (Optional) Spawn LiteLLM proxy
@@ -234,7 +234,7 @@ Ollama stores models as blobs, not raw GGUF files. We parse manifests to find th
     │
     ▼
 [Service running]
-    ├── POST /chat → Stream tokens via SSE
+    ├── POST /chat/completions → Stream tokens via SSE
     ├── Messages saved to SQLite
     └── WS /logs/stream → Real-time log tailing
     │
@@ -242,7 +242,7 @@ Ollama stores models as blobs, not raw GGUF files. We parse manifests to find th
 [User clicks Stop]
     │
     ▼
-[POST /services/stop]
+[POST /control/stop]
     └── Graceful shutdown of llama.cpp + LiteLLM
 ```
 
@@ -365,10 +365,10 @@ server/src/llmlaunchpad/
 ├── offload.py           # GPU layer calculation
 └── routes/
     ├── __init__.py      # Router aggregation
-    ├── chat.py          # POST /chat (SSE streaming)
+    ├── chat.py          # POST /chat/completions (SSE streaming)
     ├── conversations.py # CRUD + search + export
     ├── status.py        # GET /health, /status, /hardware
-    ├── control.py       # POST /services/*
+    ├── control.py       # POST /control/*
     └── models.py        # GET/POST /models/*
 ```
 

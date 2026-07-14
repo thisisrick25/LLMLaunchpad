@@ -193,15 +193,24 @@ export const api = {
   },
 
   // Streaming chat completion
-  async *streamChat(req: ChatRequest): AsyncGenerator<StreamChunk> {
+  async *streamChat(req: ChatRequest, signal?: AbortSignal): AsyncGenerator<StreamChunk> {
     const response = await fetch(`${API_BASE}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...req, stream: true }),
+      signal,
     });
 
     if (!response.ok) {
-      throw new Error(`Chat error: ${response.status}`);
+      let detail = '';
+      try {
+        const body = await response.json();
+        detail = typeof body?.detail === 'string' ? body.detail : '';
+      } catch {
+        // Ignore parse errors; fall back to status text
+      }
+      const message = detail || response.statusText || 'Request failed';
+      throw new Error(`${message} (error ${response.status})`);
     }
 
     const reader = response.body?.getReader();
@@ -210,25 +219,33 @@ export const api = {
     const decoder = new TextDecoder();
     let buffer = '';
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            const chunk: StreamChunk = JSON.parse(line.slice(6));
-            yield chunk;
-            if (chunk.done || chunk.error) return;
-          } catch {
-            // Ignore parse errors
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const chunk: StreamChunk = JSON.parse(line.slice(6));
+              yield chunk;
+              if (chunk.done || chunk.error) return;
+            } catch {
+              // Ignore parse errors
+            }
           }
         }
       }
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        yield { done: true, aborted: true };
+        return;
+      }
+      throw e;
     }
   },
 

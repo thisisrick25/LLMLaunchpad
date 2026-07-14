@@ -123,6 +123,7 @@
 
   async function handleExport(e: Event, id: string, format: "json" | "md") {
     e.stopPropagation();
+    activeActionsId = null;
     if (format === "json") {
       await chatStore.exportJSON(id);
     } else {
@@ -248,7 +249,13 @@
                              on:click={(e) => handleExport(e, conv.id, "md")}
                              class="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
                            >
-                             Export
+                             Export as Markdown
+                           </button>
+                           <button
+                             on:click={(e) => handleExport(e, conv.id, "json")}
+                             class="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
+                           >
+                             Export as JSON
                            </button>
                            <div class="border-t border-gray-100 dark:border-white/5"></div>
                            <button

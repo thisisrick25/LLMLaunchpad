@@ -6,6 +6,7 @@ import asyncio
 import logging
 import platform
 import shutil
+import socket
 import subprocess
 from pathlib import Path
 from dataclasses import dataclass, field
@@ -155,6 +156,37 @@ def find_llama_server() -> Optional[str]:
     return None
 
 
+def _is_port_free(port: int, host: str = "127.0.0.1") -> bool:
+    """Return True if a TCP port can be bound on host (i.e. it is free)."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind((host, port))
+            return True
+        except OSError:
+            return False
+
+
+def find_free_port(preferred: int, host: str = "127.0.0.1") -> int:
+    """
+    Return a usable TCP port for llama-server.
+
+    Prefers `preferred`; if that port is already in use, asks the OS for a
+    free ephemeral port (bind to port 0). This guarantees the port stored in
+    the server config is the port llama-server actually binds, so downstream
+    consumers (get_api_url, chat routing) never target a stale/occupied port.
+    """
+    if _is_port_free(preferred, host):
+        return preferred
+
+    logger.warning(
+        f"Preferred port {preferred} is in use; selecting an OS-assigned free port instead."
+    )
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind((host, 0))
+        return sock.getsockname()[1]
+
+
 class LlamaServer:
     """Manager for the llama-server process."""
 
@@ -245,11 +277,15 @@ class LlamaServer:
         gpu_layers: int = 0,
         context_size: int = 4096,
         host: str = "127.0.0.1",
-        port: int = 8080,
+        port: Optional[int] = None,
         **kwargs,
     ) -> bool:
         """
         Start the llama-server with the specified model.
+
+        `port` is a preferred port (defaults to 8080 when None). If it is
+        already in use, an OS-assigned free port is chosen instead and stored
+        in the server config, so get_api_url() always reflects the real port.
 
         Returns True if started successfully.
         """
@@ -277,11 +313,14 @@ class LlamaServer:
             self._state = LlamaServerState.ERROR
             return False
 
+        # Resolve the actual port to bind (preferred, else OS-assigned free port)
+        resolved_port = find_free_port(port if port is not None else 8080, host)
+
         # Build config
         self._config = LlamaServerConfig(
             model_path=model_path,
             host=host,
-            port=port,
+            port=resolved_port,
             context_size=context_size,
             gpu_layers=gpu_layers,
             **kwargs,

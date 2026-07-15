@@ -159,6 +159,7 @@ export interface StreamChunk {
   content?: string;
   conversation_id?: string;
   done?: boolean;
+  aborted?: boolean;
   error?: string;
 }
 

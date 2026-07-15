@@ -130,22 +130,28 @@
         rows="1"
         class="flex-1 resize-none rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-black px-4 py-2 text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
       ></textarea>
-      <button
-        type="submit"
-        disabled={!inputValue.trim() || $isStreaming}
-        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-      >
-        {#if $isStreaming}
-          <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      {#if $isStreaming}
+        <button
+          type="button"
+          on:click={() => chatStore.abort()}
+          class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+          aria-label="Stop generation"
+        >
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <rect x="6" y="6" width="12" height="12" rx="1.5" />
           </svg>
-        {:else}
+        </button>
+      {:else}
+        <button
+          type="submit"
+          disabled={!inputValue.trim()}
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+        >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
           </svg>
-        {/if}
-      </button>
+        </button>
+      {/if}
     </form>
   </div>
 </div>

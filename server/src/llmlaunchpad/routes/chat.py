@@ -26,6 +26,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
+# conversation_id -> Event: setting the event makes that generation's stream loop break.
+_abort_events: Dict[str, asyncio.Event] = {}
+
+
 # Request/Response models
 
 class Message(BaseModel):
@@ -281,7 +285,7 @@ async def chat_completions(request: ChatRequest):
         else:
             raise HTTPException(
                 status_code=503,
-                detail="llama-server is not running. Start the server or enable cloud mode."
+                detail="No model is active. Please select a model and start the server, or enable cloud mode."
             )
     
     if use_cloud and not is_litellm_available():
@@ -314,6 +318,9 @@ async def chat_completions(request: ChatRequest):
         # Streaming response
         async def event_generator():
             full_response = []
+            abort_event = asyncio.Event()
+            _abort_events[conversation_id] = abort_event
+            aborted = False
             
             try:
                 if use_cloud and cloud_model:
@@ -331,6 +338,9 @@ async def chat_completions(request: ChatRequest):
                     )
                 
                 async for chunk in stream:
+                    if abort_event.is_set():
+                        aborted = True
+                        break
                     full_response.append(chunk)
                     yield f"data: {json.dumps({'content': chunk, 'conversation_id': conversation_id})}\n\n"
                 
@@ -342,11 +352,14 @@ async def chat_completions(request: ChatRequest):
                         "".join(full_response),
                     )
                 
-                yield f"data: {json.dumps({'done': True, 'conversation_id': conversation_id})}\n\n"
+                yield f"data: {json.dumps({'done': True, 'aborted': aborted, 'conversation_id': conversation_id})}\n\n"
                 
             except Exception as e:
                 logger.error(f"Chat completion error: {e}")
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            finally:
+                if _abort_events.get(conversation_id) is abort_event:
+                    del _abort_events[conversation_id]
         
         return StreamingResponse(
             event_generator(),
@@ -445,13 +458,30 @@ async def get_chat_models():
     return models
 
 
+class AbortRequest(BaseModel):
+    """Request to abort a generation."""
+    conversation_id: Optional[str] = None
+
+
 @router.post("/abort")
-async def abort_generation():
+async def abort_generation(request: Optional[AbortRequest] = None):
     """
-    Abort the current generation.
-    
-    This is a best-effort operation - streaming may have already completed.
+    Abort an in-progress generation.
+
+    If conversation_id is provided, aborts that specific generation.
+    Otherwise aborts all active generations. Best-effort: streaming may
+    have already completed.
     """
-    # For now, this is a no-op since we don't track active generations
-    # In a more sophisticated implementation, we'd track and cancel active streams
-    return {"status": "abort_requested"}
+    conversation_id = request.conversation_id if request else None
+
+    if conversation_id:
+        event = _abort_events.get(conversation_id)
+        if event:
+            event.set()
+            return {"status": "aborted", "conversation_id": conversation_id}
+        return {"status": "not_found", "conversation_id": conversation_id}
+
+    aborted_ids = list(_abort_events.keys())
+    for event in _abort_events.values():
+        event.set()
+    return {"status": "aborted", "conversation_ids": aborted_ids}

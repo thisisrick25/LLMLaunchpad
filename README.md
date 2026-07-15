@@ -125,14 +125,15 @@ LLMLaunchpad scans for GGUF models in:
 | `/status` | GET | System status |
 | `/models` | GET | List models |
 | `/models/scan` | POST | Rescan models |
-| `/models/search` | GET | Search HuggingFace |
+| `/models/hf/search` | POST | Search HuggingFace |
 | `/models/download` | POST | Download from HF |
 | `/control/start` | POST | Start llama.cpp |
 | `/control/stop` | POST | Stop llama.cpp |
-| `/chat` | POST | Chat (SSE streaming) |
+| `/chat/completions` | POST | Chat (SSE streaming) |
 | `/conversations` | GET | List conversations |
 | `/conversations/{id}` | GET/DELETE | Get/delete conversation |
-| `/conversations/{id}/export` | GET | Export conversation |
+| `/conversations/{id}/export/json` | GET | Export conversation as JSON |
+| `/conversations/{id}/export/markdown` | GET | Export conversation as Markdown |
 
 ## Tech Stack
 

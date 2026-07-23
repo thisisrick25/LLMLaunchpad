@@ -1,26 +1,18 @@
 """Tests for service control API routes."""
 
-import pytest
-from unittest.mock import Mock, patch, PropertyMock
+from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from src.llmlaunchpad.routes.control import PerformanceMode
-from src.llmlaunchpad.offload import OffloadRecommendation
-from src.llmlaunchpad.llama import LlamaServerState
-from src.llmlaunchpad.config import _config
-
-# Import the app correctly
-from src.llmlaunchpad.main import app
+from llmlaunchpad.config import _config
+from llmlaunchpad.llama import LlamaServerState
+from llmlaunchpad.main import app
 
 client = TestClient(app)
 
 
 def test_get_mode():
     """Test getting current performance mode."""
-    with patch('src.llmlaunchpad.routes.control.get_config') as mock_get_config:
+    with patch('llmlaunchpad.routes.control.get_config') as mock_get_config:
         mock_config = Mock()
         mock_config.mode = 'auto'
         mock_get_config.return_value = mock_config
@@ -34,8 +26,8 @@ def test_get_mode():
 
 def test_set_mode_valid():
     """Test setting a valid performance mode."""
-    with patch('server.src.llmlaunchpad.routes.control.get_config') as mock_get_config, \
-         patch('server.src.llmlaunchpad.routes.control.save_config') as mock_save_config:
+    with patch('llmlaunchpad.routes.control.get_config') as mock_get_config, \
+         patch('llmlaunchpad.routes.control.save_config'):
         mock_config = Mock()
         mock_config.mode = 'auto'
         mock_get_config.return_value = mock_config
@@ -58,10 +50,9 @@ def test_set_mode_invalid():
 
 def test_optimize_performance_not_running():
     """Test optimization when server is not running."""
-    with patch('server.src.llmlaunchpad.routes.control.get_llama_server') as mock_get_server:
+    with patch('llmlaunchpad.routes.control.get_llama_server') as mock_get_server:
         mock_server = Mock()
-        mock_server.state = Mock()
-        mock_server.state != "running"  # Not running
+        mock_server.state = LlamaServerState.STOPPED
         mock_get_server.return_value = mock_server
         
         response = client.post("/control/optimize", json={"model": "test-model"})
@@ -71,10 +62,10 @@ def test_optimize_performance_not_running():
 
 def test_optimize_performance_success():
     """Test successful optimization."""
-    with patch('src.llmlaunchpad.routes.control.get_llama_server') as mock_get_server, \
-         patch('src.llmlaunchpad.routes.control.find_model_by_name') as mock_find_model, \
-         patch('src.llmlaunchpad.routes.control.get_config') as mock_get_config, \
-         patch('src.llmlaunchpad.routes.control.calculate_offload') as mock_calculate_offload:
+    with patch('llmlaunchpad.routes.control.get_llama_server') as mock_get_server, \
+         patch('llmlaunchpad.routes.control.find_model_by_name') as mock_find_model, \
+         patch('llmlaunchpad.routes.control.get_config') as mock_get_config, \
+         patch('llmlaunchpad.routes.control.calculate_offload') as mock_calculate_offload:
 
         # Mock server as running
         mock_server = Mock()
@@ -121,7 +112,7 @@ def test_optimize_performance_success():
 
 def test_update_server_config():
     """Test updating server configuration."""
-    from src.llmlaunchpad.config import Config
+    from llmlaunchpad.config import Config
     # Store the original config
     original_config = _config
     
@@ -132,11 +123,12 @@ def test_update_server_config():
     real_config.gpu_layers = 0
     
     # Set the global config to our test object
-    import src.llmlaunchpad.config as config_module
+    import llmlaunchpad.config as config_module
     config_module._config = real_config
     
     try:
-        with patch('src.llmlaunchpad.routes.control.save_config') as mock_save_config:
+        with patch('llmlaunchpad.routes.control.get_config', return_value=real_config), \
+             patch('llmlaunchpad.routes.control.save_config') as mock_save_config:
             response = client.post("/control/config", json={
                 "mode": "gpu-heavy",
                 "context_size": 8192,

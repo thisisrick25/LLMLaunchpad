@@ -1,8 +1,8 @@
 """Tests for GPU offload calculation functionality."""
 
-import pytest
 from unittest.mock import Mock, patch
-from server.src.llmlaunchpad.offload import (
+
+from llmlaunchpad.offload import (
     calculate_offload,
     PerformanceMode,
     OffloadRecommendation,
@@ -11,7 +11,7 @@ from server.src.llmlaunchpad.offload import (
     estimate_model_memory,
     calculate_optimal_layers
 )
-from server.src.llmlaunchpad.hardware import HardwareInfo, GPUInfo
+from llmlaunchpad.hardware import HardwareInfo, GPUInfo
 
 
 def test_calculate_offload_returns_zero_layers_when_no_gpu():
@@ -180,7 +180,7 @@ def test_estimate_context_memory_calculation():
 def test_calculate_optimal_layers_respects_layer_cap():
     """Test that calculate_optimal_layers caps at actual layer count."""
     # Arrange
-    from server.src.llmlaunchpad.offload import ModelMemoryEstimate
+    from llmlaunchpad.offload import ModelMemoryEstimate
     
     model_estimate = ModelMemoryEstimate(
         total_size_bytes=10_000_000_000,  # 10GB

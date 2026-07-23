@@ -1,18 +1,18 @@
-"""Tests for chat API error handling."""
-
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
-from server.src.llmlaunchpad.main import app
-from server.src.llmlaunchpad.llama import LlamaServerState
+
+from llmlaunchpad.main import app
+from llmlaunchpad.llama import LlamaServerState
 
 client = TestClient(app)
 
 
 def test_chat_timeout_handling():
     """Test that chat API handles timeouts gracefully."""
-    with patch('server.src.llmlaunchpad.routes.chat.get_local_completion') as mock_completion, \
-         patch('server.src.llmlaunchpad.routes.chat.get_llama_server') as mock_get_server:
+    with patch('llmlaunchpad.routes.chat.get_local_completion') as mock_completion, \
+         patch('llmlaunchpad.routes.chat.get_llama_server') as mock_get_server, \
+         patch('llmlaunchpad.routes.chat.save_message'):
         # Mock the server to be running
         mock_server = MagicMock()
         mock_server.state = LlamaServerState.RUNNING
@@ -36,8 +36,9 @@ def test_chat_timeout_handling():
 
 def test_chat_connection_error_handling():
     """Test that chat API handles connection errors gracefully."""
-    with patch('server.src.llmlaunchpad.routes.chat.get_local_completion') as mock_completion, \
-         patch('server.src.llmlaunchpad.routes.chat.get_llama_server') as mock_get_server:
+    with patch('llmlaunchpad.routes.chat.get_local_completion') as mock_completion, \
+         patch('llmlaunchpad.routes.chat.get_llama_server') as mock_get_server, \
+         patch('llmlaunchpad.routes.chat.save_message'):
         # Mock the server to be running
         mock_server = MagicMock()
         mock_server.state = LlamaServerState.RUNNING
@@ -61,8 +62,9 @@ def test_chat_connection_error_handling():
 
 def test_chat_invalid_response_handling():
     """Test that chat API handles invalid responses from llama-server."""
-    with patch('server.src.llmlaunchpad.routes.chat.get_local_completion') as mock_completion, \
-         patch('server.src.llmlaunchpad.routes.chat.get_llama_server') as mock_get_server:
+    with patch('llmlaunchpad.routes.chat.get_local_completion') as mock_completion, \
+         patch('llmlaunchpad.routes.chat.get_llama_server') as mock_get_server, \
+         patch('llmlaunchpad.routes.chat.save_message'):
         # Mock the server to be running
         mock_server = MagicMock()
         mock_server.state = LlamaServerState.RUNNING
@@ -98,8 +100,9 @@ def test_chat_request_validation():
 
 def test_chat_streaming_timeout_handling():
     """Test that streaming chat handles timeouts."""
-    with patch('server.src.llmlaunchpad.routes.chat.stream_local_completion') as mock_stream, \
-         patch('server.src.llmlaunchpad.routes.chat.get_llama_server') as mock_get_server:
+    with patch('llmlaunchpad.routes.chat.stream_local_completion') as mock_stream, \
+         patch('llmlaunchpad.routes.chat.get_llama_server') as mock_get_server, \
+         patch('llmlaunchpad.routes.chat.save_message'):
         # Mock the server to be running
         mock_server = MagicMock()
         mock_server.state = LlamaServerState.RUNNING

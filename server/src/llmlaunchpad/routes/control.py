@@ -23,7 +23,7 @@ class StartRequest(BaseModel):
     mode: str = "auto"  # auto, gpu-heavy, cpu-only
     context_size: int = 4096
     gpu_layers: Optional[int] = None  # Override auto-calculation
-    port: int = 8080
+    port: Optional[int] = None  # Preferred port; backend picks a free one if omitted or taken
 
 
 class StopRequest(BaseModel):
@@ -109,7 +109,7 @@ async def start_server(request: StartRequest):
             )
 
         # Validate port
-        if request.port < 1 or request.port > 65535:
+        if request.port is not None and (request.port < 1 or request.port > 65535):
             raise HTTPException(
                 status_code=400,
                 detail="Port must be between 1 and 65535"

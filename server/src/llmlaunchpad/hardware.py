@@ -85,7 +85,7 @@ def detect_gpus() -> List[GPUInfo]:
         import json
         try:
             cmd = ["system_profiler", "SPDisplaysDataType", "-json"]
-            output = subprocess.check_output(cmd, text=True)
+            output = subprocess.check_output(cmd, text=True, timeout=5)
             data = json.loads(output)
             if "SPDisplaysDataType" in data:
                 for item in data["SPDisplaysDataType"]:
@@ -119,7 +119,8 @@ def get_cpu_name() -> str:
             import subprocess
             output = subprocess.check_output(
                 ["wmic", "cpu", "get", "name"],
-                text=True
+                text=True,
+                timeout=5,
             )
             lines = output.strip().split("\n")
             if len(lines) > 1:
@@ -128,7 +129,8 @@ def get_cpu_name() -> str:
             import subprocess
             output = subprocess.check_output(
                 ["sysctl", "-n", "machdep.cpu.brand_string"],
-                text=True
+                text=True,
+                timeout=5,
             )
             return output.strip()
         else:

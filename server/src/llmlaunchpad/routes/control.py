@@ -11,6 +11,7 @@ from ..llama import get_llama_server, LlamaServerState
 from ..offload import calculate_offload, PerformanceMode
 from ..models import find_model_by_name
 from ..config import get_config, save_config, is_dev_mode, get_dev_model_path
+from ..hardware import get_hardware_info
 
 router = APIRouter(prefix="/control", tags=["control"])
 
@@ -119,6 +120,13 @@ async def start_server(request: StartRequest):
         if request.gpu_layers is not None:
             gpu_layers = request.gpu_layers
             logger.info(f"Using specified gpu_layers: {gpu_layers}")
+            # Explicit gpu_layers skips calculate_offload's no-GPU guard, so re-check here.
+            if gpu_layers > 0 and not get_hardware_info().has_gpu:
+                logger.warning(
+                    f"Requested gpu_layers={gpu_layers} but no GPU detected; "
+                    "forcing CPU-only (gpu_layers=0)"
+                )
+                gpu_layers = 0
         else:
             recommendation = calculate_offload(
                 model_path=model.path,

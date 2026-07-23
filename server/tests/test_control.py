@@ -1,6 +1,6 @@
 """Tests for service control API routes."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from fastapi.testclient import TestClient
 
 from llmlaunchpad.config import _config
@@ -177,3 +177,61 @@ def test_update_server_config_invalid_gpu_layers():
     response = client.post("/control/config", json={"gpu_layers": -1})  # Negative
     assert response.status_code == 400
     assert "GPU layers must be >= 0" in response.json()["detail"]
+
+
+def test_start_clamps_gpu_layers_when_no_gpu():
+    """Explicit gpu_layers must be forced to 0 when no GPU is present."""
+    with patch('llmlaunchpad.routes.control.get_llama_server') as mock_get_server, \
+         patch('llmlaunchpad.routes.control.find_model_by_name') as mock_find_model, \
+         patch('llmlaunchpad.routes.control.get_hardware_info') as mock_hw:
+
+        mock_server = Mock()
+        mock_server.state = LlamaServerState.STOPPED
+        mock_server.start = AsyncMock(return_value=True)
+        mock_server.get_api_url.return_value = "http://127.0.0.1:8080"
+        mock_get_server.return_value = mock_server
+
+        mock_model = Mock()
+        mock_model.name = "test-model"
+        mock_model.path = "/path/to/model.gguf"
+        mock_find_model.return_value = mock_model
+
+        mock_hw.return_value.has_gpu = False
+
+        response = client.post("/control/start", json={
+            "model": "test-model",
+            "gpu_layers": 20,
+        })
+
+        assert response.status_code == 200
+        assert response.json()["gpu_layers"] == 0
+        assert mock_server.start.await_args.kwargs["gpu_layers"] == 0
+
+
+def test_start_preserves_gpu_layers_when_gpu_present():
+    """Explicit gpu_layers must pass through unchanged when a GPU is present."""
+    with patch('llmlaunchpad.routes.control.get_llama_server') as mock_get_server, \
+         patch('llmlaunchpad.routes.control.find_model_by_name') as mock_find_model, \
+         patch('llmlaunchpad.routes.control.get_hardware_info') as mock_hw:
+
+        mock_server = Mock()
+        mock_server.state = LlamaServerState.STOPPED
+        mock_server.start = AsyncMock(return_value=True)
+        mock_server.get_api_url.return_value = "http://127.0.0.1:8080"
+        mock_get_server.return_value = mock_server
+
+        mock_model = Mock()
+        mock_model.name = "test-model"
+        mock_model.path = "/path/to/model.gguf"
+        mock_find_model.return_value = mock_model
+
+        mock_hw.return_value.has_gpu = True
+
+        response = client.post("/control/start", json={
+            "model": "test-model",
+            "gpu_layers": 20,
+        })
+
+        assert response.status_code == 200
+        assert response.json()["gpu_layers"] == 20
+        assert mock_server.start.await_args.kwargs["gpu_layers"] == 20
